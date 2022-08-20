@@ -136,8 +136,8 @@ void user_main(void){
 			/*FilterLOW contains last 13 bits(positioned at bit 15:3); last 3 bit of filterLOW is neglected (IDE RTR 0)*/
 			.FilterIdHigh = 0x080AD092>>13,
 			.FilterIdLow = (0x080AD092<<3) & 0x0000FFFF,
-			.FilterMaskIdHigh = 0x0000,
-			.FilterMaskIdLow = 0x0000
+			.FilterMaskIdHigh = 0xFFFF,
+			.FilterMaskIdLow = 0xFFFF&(~0b111)
 	};
 	if (HAL_CAN_ConfigFilter(&hcan, &canfilterconfig)!=HAL_OK){
 		Error_Handler();
