@@ -101,11 +101,16 @@ extern DMA_HandleTypeDef hdma_adc1;
 extern CAN_HandleTypeDef hcan;
 extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart1;
+extern TIM_HandleTypeDef htim3;
 
 #define ADC_DMA_ARRAY_RANK_LTRAVEL 0	/*IN3,PA3*/
 #define ADC_DMA_ARRAY_RANK_RTRAVEL 1	/*IN9,PB1*/
 /*ADC1 DMA destination array, the corresponding rank is defined above.*/
 uint32_t ADC_value[2]={0};
+
+#define NUMBER_OF_HALL_SENSORS 2
+static int hall_counter[NUMBER_OF_HALL_SENSORS]={0};
+static int hall_counter_result[NUMBER_OF_HALL_SENSORS]={0};
 
 /*CAN required custom variables*/
 static CAN_TxHeaderTypeDef CAN_Tx_header_1 = {
@@ -114,8 +119,6 @@ static CAN_TxHeaderTypeDef CAN_Tx_header_1 = {
 	.RTR = CAN_RTR_DATA,
 	.DLC = 8
 };
-static uint8_t CAN_Tx_data_1[8]={0};
-static uint32_t Tx_mailbox_1;
 
 static CAN_TxHeaderTypeDef CAN_Tx_header_2 = {
 	.IDE = CAN_ID_EXT,
@@ -123,8 +126,7 @@ static CAN_TxHeaderTypeDef CAN_Tx_header_2 = {
 	.RTR = CAN_RTR_DATA,
 	.DLC = 8
 };
-static uint8_t CAN_Tx_data_2[8]={0};
-static uint32_t Tx_mailbox_2;
+
 
 CAN_RxHeaderTypeDef CAN_Rx_header;
 uint8_t CAN_RxData[8]={0};
@@ -138,6 +140,9 @@ uint8_t CAN_RxData[8]={0};
 void user_main(void){
 	/*Starting the ADC with DMA*/
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&ADC_value,2);
+
+	/*starts the timer for wheel speed sensors*/
+	HAL_TIM_Base_Start_IT(&htim3);
 
 	/*setting up the CAN receive filter*/
 	CAN_FilterTypeDef canfilterconfig = {
@@ -163,6 +168,13 @@ void user_main(void){
 	}
 	HAL_CAN_Start(&hcan);
 
+	/*CAN transfer variables*/
+	uint8_t CAN_Tx_data_2[8]={0};
+	uint32_t Tx_mailbox_2;
+
+	uint8_t CAN_Tx_data_1[8]={0};
+	uint32_t Tx_mailbox_1;
+
 	/*superloop*/
 	for(;/*ever*/;){
 		
@@ -178,6 +190,14 @@ void user_main(void){
 		//HAL_UART_Transmit(&huart1,(uint8_t*)&A,2,0xFFFF);
 		// HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
 
+		/*wheel speed results*/
+		uint16_t wheel_speedL = wheel_speed_transfer_function(hall_counter_result[0]);
+		uint16_t wheel_speedR = wheel_speed_transfer_function(hall_counter_result[1]);
+
+		CAN_Tx_data_1[0] = (uint8_t)(wheel_speedL>>8);
+		CAN_Tx_data_1[1] = (uint8_t)(wheel_speedL & 0x00FF);
+		CAN_Tx_data_1[2] = (uint8_t)(wheel_speedR>>8);
+		CAN_Tx_data_1[3] = (uint8_t)(wheel_speedR & 0x00FF);
 
 		/*CAN sending message*/
 		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_1,CAN_Tx_data_1,&Tx_mailbox_1)!=HAL_OK){
@@ -201,10 +221,31 @@ void user_main(void){
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
 	HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
 	if(GPIO_PIN==GPIO_PIN_5){
-		printf("right wheelspeed\n");
+		//printf("right wheelspeed\n");
+		hall_counter[1]++;
 	}
 	else if(GPIO_PIN==GPIO_PIN_4){
-		printf("left wheelspeed\n");
+		//printf("left wheelspeed\n");
+		hall_counter[0]++;
+	}
+	return;
+}
+
+/**
+  * @brief  User defined timer overflow interrupt callback function.
+  * 		Shall only be called by HAL interrupt handlers.
+  * @note 	For timer3, which should update in a fixed interval defined in CubeMX, we grab
+  * 		the current hall sensor counts, then reset it.
+  * @param  htim: the timer that generated the interrupt.
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim==&htim3){
+		int i=0;
+		for(i=0;i<sizeof(hall_counter)/sizeof(hall_counter[0]);i++){
+			hall_counter_result[i]=hall_counter[i];
+			hall_counter[i]=0;
+		}
 	}
 	return;
 }
