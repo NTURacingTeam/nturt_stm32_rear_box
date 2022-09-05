@@ -191,10 +191,16 @@ void user_main(void){
 		uint16_t wheel_speedL = wheel_speed_transfer_function(hall_counter_result[0]);
 		uint16_t wheel_speedR = wheel_speed_transfer_function(hall_counter_result[1]);
 
+		uint8_t left_travel = suspension_travel_transfer_function(ADC_value[ADC_DMA_ARRAY_RANK_LTRAVEL]);
+		uint8_t right_travel = suspension_travel_transfer_function(ADC_value[ADC_DMA_ARRAY_RANK_RTRAVEL]);
+
 		CAN_Tx_data_1[0] = (uint8_t)(wheel_speedL>>8);
 		CAN_Tx_data_1[1] = (uint8_t)(wheel_speedL & 0x00FF);
 		CAN_Tx_data_1[2] = (uint8_t)(wheel_speedR>>8);
 		CAN_Tx_data_1[3] = (uint8_t)(wheel_speedR & 0x00FF);
+
+		CAN_Tx_data_2[0] = left_travel;
+		CAN_Tx_data_2[1] = right_travel;
 
 		/*CAN sending message*/
 		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_1,CAN_Tx_data_1,&Tx_mailbox_1)!=HAL_OK){
