@@ -122,14 +122,11 @@ static CAN_TxHeaderTypeDef CAN_Tx_header_1 = {
 
 static CAN_TxHeaderTypeDef CAN_Tx_header_2 = {
 	.IDE = CAN_ID_EXT,
-	.ExtId = 0x080AD093,
+	.ExtId = 0x080AD094,
 	.RTR = CAN_RTR_DATA,
 	.DLC = 8
 };
 
-
-CAN_RxHeaderTypeDef CAN_Rx_header;
-uint8_t CAN_RxData[8]={0};
 /**
   * @brief  contains the part of the application instructions that is originally put in main(),
   * 		including the super loop.
@@ -257,13 +254,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
   * @retval None
   */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
+	CAN_RxHeaderTypeDef CAN_Rx_header;
+	uint8_t CAN_Rx_data[8]={0};
+
 	/*for rearbox, only 0x080AD092(front box 2) should pass through*/
-  if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Rx_header, CAN_RxData) != HAL_OK){
+  if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Rx_header, CAN_Rx_data) != HAL_OK){
     Error_Handler();
   }
 
   /*checks bit1 on byte8 for brake pedal state, turns on the brake light if it is set*/
-  if(CAN_RxData[7]&(1u<<1)){
+  if(CAN_Rx_data[7]&(1u<<1)){
 	  HAL_GPIO_WritePin(GPIOB,GPIO_PIN_12,GPIO_PIN_SET);
 	  HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,GPIO_PIN_RESET);
   }
