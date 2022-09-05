@@ -89,6 +89,7 @@
 #include "main.h"
 #include <stdio.h>
 #include "MLX.h"
+#include "analog_transfer_function.h"
 
 /* auto-generated peripheral handler structure by MX.
  * First defined in main.c
@@ -107,12 +108,26 @@ extern UART_HandleTypeDef huart1;
 uint32_t ADC_value[2]={0};
 
 /*CAN required custom variables*/
-CAN_TxHeaderTypeDef TxHeader;
-CAN_RxHeaderTypeDef RxHeader;
-uint8_t CAN_TxData[4]={0x01,0x02,0x03,0x04};
-uint8_t CAN_RxData[8]={0};
-uint32_t TxMailbox;
+static CAN_TxHeaderTypeDef CAN_Tx_header_1 = {
+	.IDE = CAN_ID_EXT,
+	.ExtId = 0x080AD093,
+	.RTR = CAN_RTR_DATA,
+	.DLC = 8
+};
+static uint8_t CAN_Tx_data_1[8]={0};
+static uint32_t Tx_mailbox_1;
 
+static CAN_TxHeaderTypeDef CAN_Tx_header_2 = {
+	.IDE = CAN_ID_EXT,
+	.ExtId = 0x080AD093,
+	.RTR = CAN_RTR_DATA,
+	.DLC = 8
+};
+static uint8_t CAN_Tx_data_2[8]={0};
+static uint32_t Tx_mailbox_2;
+
+CAN_RxHeaderTypeDef CAN_Rx_header;
+uint8_t CAN_RxData[8]={0};
 /**
   * @brief  contains the part of the application instructions that is originally put in main(),
   * 		including the super loop.
@@ -150,7 +165,7 @@ void user_main(void){
 
 	/*superloop*/
 	for(;/*ever*/;){
-		/*
+		
 		float temp=MLX90614_ReadReg(0x5A,0x08,0)*0.02-273.15;
 		printf("%.2f\r\n",temp);
 		//  printf("%.2f C \r\n",MLX90614_ReadReg(0x5A,0x06,0)*0.02-273.15);
@@ -162,19 +177,18 @@ void user_main(void){
 		//uint8_t A[3] ="aa";
 		//HAL_UART_Transmit(&huart1,(uint8_t*)&A,2,0xFFFF);
 		// HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
-*/
+
 
 		/*CAN sending message*/
-		/*
-		TxHeader.IDE = CAN_ID_STD;
-		TxHeader.StdId = 0x333;
-		TxHeader.RTR = CAN_RTR_DATA;
-		TxHeader.DLC = 4;
-		if(HAL_CAN_AddTxMessage(&hcan,&TxHeader,CAN_TxData,&TxMailbox)!=HAL_OK){
+		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_1,CAN_Tx_data_1,&Tx_mailbox_1)!=HAL_OK){
 		  Error_Handler();
 		}
-		HAL_Delay(1000);
-		*/
+		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_2,CAN_Tx_data_2,&Tx_mailbox_2)!=HAL_OK){
+		  Error_Handler();
+		}
+		/*rough transmit interval*/
+		HAL_Delay(20);
+		
 	}/*for(;;)*/
 }
 
@@ -203,7 +217,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
   */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	/*for rearbox, only 0x080AD092(front box 2) should pass through*/
-  if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, CAN_RxData) != HAL_OK){
+  if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &CAN_Rx_header, CAN_RxData) != HAL_OK){
     Error_Handler();
   }
 
