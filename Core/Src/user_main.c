@@ -108,6 +108,11 @@ extern TIM_HandleTypeDef htim3;
 /*ADC1 DMA destination array, the corresponding rank is defined above.*/
 uint32_t ADC_value[2]={0};
 
+#define LEFT_TEMP_ID1 0x1A
+#define LEFT_TEMP_ID2 0x2A
+#define RIGHT_TEMP_ID1 0x3A
+#define RIGHT_TEMP_ID2 0x4A
+
 #define NUMBER_OF_HALL_SENSORS 2
 static int hall_counter[NUMBER_OF_HALL_SENSORS]={0};
 static int hall_counter_result[NUMBER_OF_HALL_SENSORS]={0};
@@ -143,18 +148,18 @@ void user_main(void){
 
 	/*setting up the CAN receive filter*/
 	CAN_FilterTypeDef canfilterconfig = {
-			.FilterActivation = CAN_FILTER_ENABLE,
-			.SlaveStartFilterBank = 0,  // how many filters to assign to the CAN1 (master can)
-			.FilterBank = 7,  // which filter bank to use from the assigned ones
-			.FilterFIFOAssignment = CAN_FILTER_FIFO0,
-			.FilterMode = CAN_FILTERMODE_IDMASK,
-			.FilterScale = CAN_FILTERSCALE_32BIT,
-			/*only letting 0x080AD092(ExtID for FrontBox2 ) pass through: FilterHIGH contains first 16bit(right aligned);*/
-			/*FilterLOW contains last 13 bits(positioned at bit 15:3); last 3 bit of filterLOW is neglected (IDE RTR 0)*/
-			.FilterIdHigh = 0x080AD092>>13,
-			.FilterIdLow = (0x080AD092<<3) & 0x0000FFFF,
-			.FilterMaskIdHigh = 0xFFFF,
-			.FilterMaskIdLow = 0xFFFF&(~0b111)
+		.FilterActivation = CAN_FILTER_ENABLE,
+		.SlaveStartFilterBank = 0,  // how many filters to assign to the CAN1 (master can)
+		.FilterBank = 7,  // which filter bank to use from the assigned ones
+		.FilterFIFOAssignment = CAN_FILTER_FIFO0,
+		.FilterMode = CAN_FILTERMODE_IDMASK,
+		.FilterScale = CAN_FILTERSCALE_32BIT,
+		/*only letting 0x080AD092(ExtID for FrontBox2 ) pass through: FilterHIGH contains first 16bit(right aligned);*/
+		/*FilterLOW contains last 13 bits(positioned at bit 15:3); last 3 bit of filterLOW is neglected (IDE RTR 0)*/
+		.FilterIdHigh = 0x080AD092>>13,
+		.FilterIdLow = (0x080AD092<<3) & 0x0000FFFF,
+		.FilterMaskIdHigh = 0xFFFF,
+		.FilterMaskIdLow = 0xFFFF&(~0b111)
 	};
 	if (HAL_CAN_ConfigFilter(&hcan, &canfilterconfig)!=HAL_OK){
 		Error_Handler();
@@ -175,17 +180,21 @@ void user_main(void){
 	/*superloop*/
 	for(;/*ever*/;){
 		
-		float temp=MLX90614_ReadReg(0x5A,0x08,0)*0.02-273.15;
-		printf("%.2f\r\n",temp);
+//		float temp=MLX90614_ReadReg(0x5A,0x08,0)*0.02-273.15;
+		//printf("%.2f\r\n",temp);
 		//  printf("%.2f C \r\n",MLX90614_ReadReg(0x5A,0x06,0)*0.02-273.15);
 		// printf("%.2f C \r\n",MLX90614_ReadReg(0x5A,0x07,0)*0.02-273.15);
 		// printf("%.2f C \r\n",MLX90614_ReadReg(0x5A,0x08,0)*0.02-273.15);
 		// printf("%x\r\n",MLX90614_ReadReg(0x5A,0x08,0));
-		printf("%ld,%ld\r\n",ADC_value[0],ADC_value[1]);
-		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_12);
+		//printf("%ld,%ld\r\n",ADC_value[0],ADC_value[1]);
+		//HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_12);
 		//uint8_t A[3] ="aa";
 		//HAL_UART_Transmit(&huart1,(uint8_t*)&A,2,0xFFFF);
 		// HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
+		uint8_t tempL1 = tire_temp_transfer_function(MLX90614_ReadTemp(LEFT_TEMP_ID1, 0x07));
+//		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadTemp(LEFT_TEMP_ID2, 0x07, 0));
+		uint8_t tempR1 = tire_temp_transfer_function(MLX90614_ReadTemp(RIGHT_TEMP_ID1, 0x07));
+//		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadTemp(RIGHT_TEMP_ID2, 0x07, 0));
 
 		/*wheel speed results*/
 		uint16_t wheel_speedL = wheel_speed_transfer_function(hall_counter_result[0]);
@@ -198,6 +207,10 @@ void user_main(void){
 		CAN_Tx_data_1[1] = (uint8_t)(wheel_speedL & 0x00FF);
 		CAN_Tx_data_1[2] = (uint8_t)(wheel_speedR>>8);
 		CAN_Tx_data_1[3] = (uint8_t)(wheel_speedR & 0x00FF);
+		CAN_Tx_data_1[4] = tempL1;
+//		CAN_Tx_data_1[5] = tempL2;
+		CAN_Tx_data_1[6] = tempR1;
+//		CAN_Tx_data_1[7] = tempR2;
 
 		CAN_Tx_data_2[0] = left_travel;
 		CAN_Tx_data_2[1] = right_travel;
