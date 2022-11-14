@@ -191,9 +191,9 @@ void user_main(void){
 		//uint8_t A[3] ="aa";
 		//HAL_UART_Transmit(&huart1,(uint8_t*)&A,2,0xFFFF);
 		// HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
-		uint8_t tempL1 = tire_temp_transfer_function(MLX90614_ReadTemp(LEFT_TEMP_ID1, 0x07));
+		uint8_t tempL1 = tire_temp_transfer_function(MLX90614_ReadReg(LEFT_TEMP_ID1, 0x07));
 //		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadTemp(LEFT_TEMP_ID2, 0x07, 0));
-		uint8_t tempR1 = tire_temp_transfer_function(MLX90614_ReadTemp(RIGHT_TEMP_ID1, 0x07));
+		uint8_t tempR1 = tire_temp_transfer_function(MLX90614_ReadReg(RIGHT_TEMP_ID1, 0x07));
 //		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadTemp(RIGHT_TEMP_ID2, 0x07, 0));
 
 		/*wheel speed results*/
