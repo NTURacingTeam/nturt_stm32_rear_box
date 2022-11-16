@@ -8,5 +8,6 @@
 #define REAR_BOX_SENSOR_ONLY
 
 void user_main(void);
+void CAN_error_handler(void);
 
 #endif

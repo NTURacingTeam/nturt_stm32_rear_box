@@ -108,10 +108,10 @@ extern TIM_HandleTypeDef htim3;
 /*ADC1 DMA destination array, the corresponding rank is defined above.*/
 uint32_t ADC_value[2]={0};
 
-#define LEFT_TEMP_ID1 0x1A
-#define LEFT_TEMP_ID2 0x2A
-#define RIGHT_TEMP_ID1 0x3A
-#define RIGHT_TEMP_ID2 0x4A
+#define LEFT_TEMP_ID1 0x2A
+#define LEFT_TEMP_ID2 0x3A
+#define RIGHT_TEMP_ID1 0x4A
+#define RIGHT_TEMP_ID2 0x5A
 
 #define NUMBER_OF_HALL_SENSORS 2
 static int hall_counter[NUMBER_OF_HALL_SENSORS]={0};
@@ -191,10 +191,10 @@ void user_main(void){
 		//uint8_t A[3] ="aa";
 		//HAL_UART_Transmit(&huart1,(uint8_t*)&A,2,0xFFFF);
 		// HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
-		uint8_t tempL1 = tire_temp_transfer_function(MLX90614_ReadReg(LEFT_TEMP_ID1, 0x07));
-//		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadTemp(LEFT_TEMP_ID2, 0x07, 0));
-		uint8_t tempR1 = tire_temp_transfer_function(MLX90614_ReadReg(RIGHT_TEMP_ID1, 0x07));
-//		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadTemp(RIGHT_TEMP_ID2, 0x07, 0));
+		uint8_t tempL1 = tire_temp_transfer_function(MLX90614_ReadReg(LEFT_TEMP_ID1, 0x07,0));
+		uint8_t tempL2 = tire_temp_transfer_function(MLX90614_ReadReg(LEFT_TEMP_ID2, 0x07, 0));
+		uint8_t tempR1 = tire_temp_transfer_function(MLX90614_ReadReg(RIGHT_TEMP_ID1, 0x07,0));
+		uint8_t tempR2 = tire_temp_transfer_function(MLX90614_ReadReg(RIGHT_TEMP_ID2, 0x07, 0));
 
 		/*wheel speed results*/
 		uint16_t wheel_speedL = wheel_speed_transfer_function(hall_counter_result[0]);
@@ -208,19 +208,19 @@ void user_main(void){
 		CAN_Tx_data_1[2] = (uint8_t)(wheel_speedR>>8);
 		CAN_Tx_data_1[3] = (uint8_t)(wheel_speedR & 0x00FF);
 		CAN_Tx_data_1[4] = tempL1;
-//		CAN_Tx_data_1[5] = tempL2;
+		CAN_Tx_data_1[5] = tempL2;
 		CAN_Tx_data_1[6] = tempR1;
-//		CAN_Tx_data_1[7] = tempR2;
+		CAN_Tx_data_1[7] = tempR2;
 
 		CAN_Tx_data_2[0] = left_travel;
 		CAN_Tx_data_2[1] = right_travel;
 
 		/*CAN sending message*/
-		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_1,CAN_Tx_data_1,&Tx_mailbox_1)!=HAL_OK){
-		  Error_Handler();
+		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_1,CAN_Tx_data_1,&Tx_mailbox_1) != HAL_OK){
+			CAN_error_handler();
 		}
-		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_2,CAN_Tx_data_2,&Tx_mailbox_2)!=HAL_OK){
-		  Error_Handler();
+		if(HAL_CAN_AddTxMessage(&hcan,&CAN_Tx_header_2,CAN_Tx_data_2,&Tx_mailbox_2) != HAL_OK){
+			CAN_error_handler();
 		}
 		/*rough transmit interval*/
 		HAL_Delay(20);
@@ -291,4 +291,13 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	  HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,GPIO_PIN_SET);
   }
   return;
+}
+
+/**
+ * @brief CAN erro handling function
+ * #param none
+ * @retval none
+ * */
+void CAN_error_handler(){
+	HAL_NVIC_SystemReset();
 }
