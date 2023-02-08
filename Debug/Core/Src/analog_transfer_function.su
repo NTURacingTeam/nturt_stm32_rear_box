@@ -1,3 +1,0 @@
-../Core/Src/analog_transfer_function.c:216:9:suspension_travel_transfer_function	32	static
-../Core/Src/analog_transfer_function.c:238:10:wheel_speed_transfer_function	32	static
-../Core/Src/analog_transfer_function.c:253:9:tire_temp_transfer_function	24	static
