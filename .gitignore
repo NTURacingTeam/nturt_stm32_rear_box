@@ -1,0 +1,10 @@
+Drivers/
+Middlewares/
+Debug/
+.vscode/
+.settings
+.cproject
+.project
+.mxproject
+*.ld
+*.launch
