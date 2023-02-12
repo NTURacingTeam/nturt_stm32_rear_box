@@ -23,6 +23,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#ifdef configGENERATE_RUN_TIME_STATS
+#include "RuntimeStatHook.h"
+#endif
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,9 +118,8 @@ FDCAN_HandleTypeDef* const p_hcan = &hfdcan1;
 I2C_HandleTypeDef* const p_hi2c_tireTemp = &hi2c1;
 TIM_HandleTypeDef* const p_htim_hallSensorBase = &htim6;
 UART_HandleTypeDef* const p_huart_testCOM = &huart2;
+TIM_HandleTypeDef* const p_htim_rtosStatBase = &htim16;
 
-
-unsigned long rtosStatTick = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -681,14 +684,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void configureTimerForRunTimeStats(void) {
-	rtosStatTick = 0;
-	HAL_TIM_Base_Start_IT(&htim16);
-}
 
-unsigned long getRunTimeCounterValue(void) {
-	return rtosStatTick;
-}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartCanProvider */
@@ -780,9 +776,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
+  #ifdef configGENERATE_RUN_TIME_STATS
   if (htim->Instance == TIM16) {
-	  rtosStatTick++;
+	  IncRunTimeCounter();
   }
+  #endif
   /* USER CODE END Callback 1 */
 }
 
