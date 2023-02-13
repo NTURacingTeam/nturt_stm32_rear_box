@@ -132,15 +132,15 @@ osMessageQueueId_t hallRHandle;
 const osMessageQueueAttr_t hallR_attributes = {
   .name = "hallR"
 };
-/* Definitions for hallCounterMutex */
-osMutexId_t hallCounterMutexHandle;
-const osMutexAttr_t hallCounterMutex_attributes = {
-  .name = "hallCounterMutex"
-};
 /* Definitions for hallStoreMutex */
 osMutexId_t hallStoreMutexHandle;
 const osMutexAttr_t hallStoreMutex_attributes = {
   .name = "hallStoreMutex"
+};
+/* Definitions for hallCounterBinSem */
+osSemaphoreId_t hallCounterBinSemHandle;
+const osSemaphoreAttr_t hallCounterBinSem_attributes = {
+  .name = "hallCounterBinSem"
 };
 /* Definitions for sensorEventGroup */
 osEventFlagsId_t sensorEventGroupHandle;
@@ -227,15 +227,16 @@ int main(void)
   /* Init scheduler */
   osKernelInitialize();
   /* Create the mutex(es) */
-  /* creation of hallCounterMutex */
-  hallCounterMutexHandle = osMutexNew(&hallCounterMutex_attributes);
-
   /* creation of hallStoreMutex */
   hallStoreMutexHandle = osMutexNew(&hallStoreMutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of hallCounterBinSem */
+  hallCounterBinSemHandle = osSemaphoreNew(1, 1, &hallCounterBinSem_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
