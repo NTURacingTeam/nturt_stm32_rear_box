@@ -46,6 +46,9 @@ extern "C" {
 static const uint32_t sensorStartEvent = 1U;
 static const uint32_t adcTaskCplt = 1U << 1;
 
+/*flags for hall timer proxy*/
+static const uint32_t timerLapEvent = 1U;
+
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
