@@ -30,6 +30,7 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticTask_t osStaticThreadDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -58,16 +59,21 @@ UART_HandleTypeDef huart2;
 
 /* Definitions for canProvider */
 osThreadId_t canProviderHandle;
+uint32_t canProviderBuffer[ 128 ];
+osStaticThreadDef_t canProviderControlBlock;
 const osThreadAttr_t canProvider_attributes = {
   .name = "canProvider",
+  .stack_mem = &canProviderBuffer[0],
+  .stack_size = sizeof(canProviderBuffer),
+  .cb_mem = &canProviderControlBlock,
+  .cb_size = sizeof(canProviderControlBlock),
   .priority = (osPriority_t) osPriorityHigh,
-  .stack_size = 128 * 4
 };
-/* Definitions for hallCounter */
-osThreadId_t hallCounterHandle;
-const osThreadAttr_t hallCounter_attributes = {
-  .name = "hallCounter",
-  .priority = (osPriority_t) osPriorityNormal,
+/* Definitions for hallConverter */
+osThreadId_t hallConverterHandle;
+const osThreadAttr_t hallConverter_attributes = {
+  .name = "hallConverter",
+  .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
 /* Definitions for adcReader */
@@ -79,9 +85,21 @@ const osThreadAttr_t adcReader_attributes = {
 };
 /* Definitions for i2cReader */
 osThreadId_t i2cReaderHandle;
+uint32_t i2cReaderBuffer[ 128 ];
+osStaticThreadDef_t i2cReaderControlBlock;
 const osThreadAttr_t i2cReader_attributes = {
   .name = "i2cReader",
+  .stack_mem = &i2cReaderBuffer[0],
+  .stack_size = sizeof(i2cReaderBuffer),
+  .cb_mem = &i2cReaderControlBlock,
+  .cb_size = sizeof(i2cReaderControlBlock),
   .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for hallCountStorer */
+osThreadId_t hallCountStorerHandle;
+const osThreadAttr_t hallCountStorer_attributes = {
+  .name = "hallCountStorer",
+  .priority = (osPriority_t) osPriorityRealtime,
   .stack_size = 128 * 4
 };
 /* Definitions for adcL */
@@ -103,6 +121,26 @@ const osMessageQueueAttr_t tempL_attributes = {
 osMessageQueueId_t tempRHandle;
 const osMessageQueueAttr_t tempR_attributes = {
   .name = "tempR"
+};
+/* Definitions for hallL */
+osMessageQueueId_t hallLHandle;
+const osMessageQueueAttr_t hallL_attributes = {
+  .name = "hallL"
+};
+/* Definitions for hallR */
+osMessageQueueId_t hallRHandle;
+const osMessageQueueAttr_t hallR_attributes = {
+  .name = "hallR"
+};
+/* Definitions for hallCounterMutex */
+osMutexId_t hallCounterMutexHandle;
+const osMutexAttr_t hallCounterMutex_attributes = {
+  .name = "hallCounterMutex"
+};
+/* Definitions for hallStoreMutex */
+osMutexId_t hallStoreMutexHandle;
+const osMutexAttr_t hallStoreMutex_attributes = {
+  .name = "hallStoreMutex"
 };
 /* Definitions for sensorEventGroup */
 osEventFlagsId_t sensorEventGroupHandle;
@@ -133,9 +171,10 @@ static void MX_TIM6_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM16_Init(void);
 void StartCanProvider(void *argument);
-void StartHallCounter(void *argument);
+void StartHallConverter(void *argument);
 void StartAdcReader(void *argument);
 void StartI2cReader(void *argument);
+void StarthallCounterStorer(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -187,6 +226,12 @@ int main(void)
 
   /* Init scheduler */
   osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of hallCounterMutex */
+  hallCounterMutexHandle = osMutexNew(&hallCounterMutex_attributes);
+
+  /* creation of hallStoreMutex */
+  hallStoreMutexHandle = osMutexNew(&hallStoreMutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -211,7 +256,13 @@ int main(void)
   tempLHandle = osMessageQueueNew (5, sizeof(uint16_t), &tempL_attributes);
 
   /* creation of tempR */
-  tempRHandle = osMessageQueueNew (16, sizeof(uint16_t), &tempR_attributes);
+  tempRHandle = osMessageQueueNew (5, sizeof(uint16_t), &tempR_attributes);
+
+  /* creation of hallL */
+  hallLHandle = osMessageQueueNew (5, sizeof(uint16_t), &hallL_attributes);
+
+  /* creation of hallR */
+  hallRHandle = osMessageQueueNew (5, sizeof(uint16_t), &hallR_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -221,8 +272,8 @@ int main(void)
   /* creation of canProvider */
   canProviderHandle = osThreadNew(StartCanProvider, NULL, &canProvider_attributes);
 
-  /* creation of hallCounter */
-  hallCounterHandle = osThreadNew(StartHallCounter, NULL, &hallCounter_attributes);
+  /* creation of hallConverter */
+  hallConverterHandle = osThreadNew(StartHallConverter, NULL, &hallConverter_attributes);
 
   /* creation of adcReader */
   adcReaderHandle = osThreadNew(StartAdcReader, NULL, &adcReader_attributes);
@@ -230,11 +281,13 @@ int main(void)
   /* creation of i2cReader */
   i2cReaderHandle = osThreadNew(StartI2cReader, NULL, &i2cReader_attributes);
 
+  /* creation of hallCountStorer */
+  hallCountStorerHandle = osThreadNew(StarthallCounterStorer, NULL, &hallCountStorer_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
-  /* Create the event(s) */
   /* creation of sensorEventGroup */
   sensorEventGroupHandle = osEventFlagsNew(&sensorEventGroup_attributes);
 
@@ -705,22 +758,22 @@ __weak void StartCanProvider(void *argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartHallCounter */
+/* USER CODE BEGIN Header_StartHallConverter */
 /**
-* @brief Function implementing the hallCounter thread.
+* @brief Function implementing the hallConverter thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartHallCounter */
-__weak void StartHallCounter(void *argument)
+/* USER CODE END Header_StartHallConverter */
+__weak void StartHallConverter(void *argument)
 {
-  /* USER CODE BEGIN StartHallCounter */
+  /* USER CODE BEGIN StartHallConverter */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartHallCounter */
+  /* USER CODE END StartHallConverter */
 }
 
 /* USER CODE BEGIN Header_StartAdcReader */
@@ -759,6 +812,24 @@ __weak void StartI2cReader(void *argument)
   /* USER CODE END StartI2cReader */
 }
 
+/* USER CODE BEGIN Header_StarthallCounterStorer */
+/**
+* @brief Function implementing the hallCountStorer thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StarthallCounterStorer */
+__weak void StarthallCounterStorer(void *argument)
+{
+  /* USER CODE BEGIN StarthallCounterStorer */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StarthallCounterStorer */
+}
+
 /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM7 interrupt took place, inside
@@ -776,11 +847,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-  #ifdef configGENERATE_RUN_TIME_STATS
-  if (htim->Instance == TIM16) {
+#ifdef configGENERATE_RUN_TIME_STATS
+
+  else if (htim->Instance == TIM16) {
 	  IncRunTimeCounter();
   }
-  #endif
+
+#endif
+  else if(htim == p_htim_hallSensorBase) {
+    //enables the timer ISR proxy task
+    osThreadFlagsSet(hallCountStorerHandle, timerLapEvent);
+  }
   /* USER CODE END Callback 1 */
 }
 
