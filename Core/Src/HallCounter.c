@@ -17,13 +17,13 @@ static inline void counterTimeoutHandler(void);
 static inline void countTimeoutHandler(void);
 static inline uint16_t wheel_speed_transfer_function(uint32_t);
 
-static const mutexTimeout = 2U;
+static const uint32_t mutexTimeout = 2U;
 
 void StartHallConverter(void *argument) {
     uint32_t bufL = 0;
     uint32_t bufR = 0;
-    uint16_t hallL = 0;
-    uint16_t hallR = 0;
+    uint16_t speedL = 0;
+    uint16_t speedR = 0;
     for(;;) {
 
         //wait for another thread to send signal here
@@ -40,18 +40,18 @@ void StartHallConverter(void *argument) {
             osMutexRelease(hallStoreMutexHandle);
 
             //throw the value into the transfer functions
-            hallL = wheel_speed_transfer_function(bufL);
-            hallR = wheel_speed_transfer_function(bufR);
+            speedL = wheel_speed_transfer_function(bufL);
+            speedR = wheel_speed_transfer_function(bufR);
 
             //send the values into queues
-            osMessageQueuePut(hallLHandle, bufL, 0, 0); //TODO
-            osMessageQueuePut(hallRHandle, bufR, 0, 0); //need timeout exception handling 
+            osMessageQueuePut(hallLHandle, &speedL, 0, 0); //TODO
+            osMessageQueuePut(hallRHandle, &speedR, 0, 0); //need timeout exception handling 
         }
         else {//timeout on Mutex
 
             //use old value instead
-            osMessageQueuePut(hallLHandle, bufL, 0, 0); 
-            osMessageQueuePut(hallRHandle, bufR, 0, 0); 
+            osMessageQueuePut(hallLHandle, &speedL, 0, 0); 
+            osMessageQueuePut(hallRHandle, &speedR, 0, 0); 
             //probably needs error reporting
         }
     }
@@ -150,7 +150,7 @@ static inline uint16_t wheel_speed_transfer_function(uint32_t reading){
 	float input = reading;
 	const float tooth_per_rev = 14.0;
 	float value = 0.0;
-	value = input *100 /tooth_per_rev *pi *256; //TODO replace the 100 with constants of timers
+	value = input *100 /tooth_per_rev *pi *256; //TODO update 100 with real timer values
 	return (uint16_t)value;
 
 }
