@@ -10,6 +10,9 @@ extern UART_HandleTypeDef* p_huart_testCOM;
 
 extern osMessageQueueId_t adcLHandle;
 extern osMessageQueueId_t adcRHandle;
+extern osMessageQueueId_t hallLHandle;
+extern osMessageQueueId_t hallRHandle;
+
 extern osEventFlagsId_t sensorEventGroupHandle;
 
 static const FDCAN_TxHeaderTypeDef CanHeader1 = {
@@ -36,7 +39,7 @@ static const FDCAN_TxHeaderTypeDef CanHeader2 = {
   .MessageMarker = 0x01
 };
 
-static uint32_t queueTimeout = 5U;
+static const uint32_t queueTimeout = 5U;
 
 void StartCanProvider(void *argument) {
   /*data variable*/
@@ -46,9 +49,11 @@ void StartCanProvider(void *argument) {
   /*sensor reading variable*/
   uint32_t adcLreading = 0;
   uint32_t adcRreading = 0;
+  uint16_t hallLreading = 0;
+  uint16_t hallRreading = 0;
 
 #ifdef PRINTF_TEST
-  uint8_t buf[20] = {0};
+  char buf[25] = {0};
 #endif
 
   /*set up the reception filter*/
@@ -83,17 +88,19 @@ void StartCanProvider(void *argument) {
     osEventFlagsSet(sensorEventGroupHandle, sensorStartEvent);
 
     /*wait for completion*/
-    if(osEventFlagsWait(sensorEventGroupHandle, adcTaskCplt, osFlagsWaitAll, 5U) == osFlagsErrorTimeout) {
+    if(osEventFlagsWait(sensorEventGroupHandle, adcTaskCplt | hallTaskCplt, osFlagsWaitAll, 5U) == osFlagsErrorTimeout) {
       ;
     }
 
     /*get finished values*/
     osMessageQueueGet(adcLHandle, &adcLreading, NULL, queueTimeout);
     osMessageQueueGet(adcRHandle, &adcRreading, NULL, queueTimeout);
+    osMessageQueueGet(hallLHandle, &hallLreading, NULL, queueTimeout);
+    osMessageQueueGet(hallRHandle, &hallRreading, NULL, queueTimeout);
 
 #ifdef PRINTF_TEST
     /*test print*/
-    sprintf(buf, "%ld, %ld\r\n", adcLreading, adcRreading);
+    sprintf(buf, "%ld, %ld, %d, %d\r\n", adcLreading, adcRreading, hallLreading, hallRreading);
 
     /*print it out*/
     HAL_UART_Transmit(p_huart_testCOM, buf, strlen(buf), HAL_MAX_DELAY);
