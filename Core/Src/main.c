@@ -174,7 +174,7 @@ void StartCanProvider(void *argument);
 void StartHallConverter(void *argument);
 void StartAdcReader(void *argument);
 void StartI2cReader(void *argument);
-void StarthallCounterStorer(void *argument);
+void StarthallCountStorer(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -283,7 +283,7 @@ int main(void)
   i2cReaderHandle = osThreadNew(StartI2cReader, NULL, &i2cReader_attributes);
 
   /* creation of hallCountStorer */
-  hallCountStorerHandle = osThreadNew(StarthallCounterStorer, NULL, &hallCountStorer_attributes);
+  hallCountStorerHandle = osThreadNew(StarthallCountStorer, NULL, &hallCountStorer_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -813,22 +813,22 @@ __weak void StartI2cReader(void *argument)
   /* USER CODE END StartI2cReader */
 }
 
-/* USER CODE BEGIN Header_StarthallCounterStorer */
+/* USER CODE BEGIN Header_StarthallCountStorer */
 /**
 * @brief Function implementing the hallCountStorer thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StarthallCounterStorer */
-__weak void StarthallCounterStorer(void *argument)
+/* USER CODE END Header_StarthallCountStorer */
+__weak void StarthallCountStorer(void *argument)
 {
-  /* USER CODE BEGIN StarthallCounterStorer */
+  /* USER CODE BEGIN StarthallCountStorer */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StarthallCounterStorer */
+  /* USER CODE END StarthallCountStorer */
 }
 
 /**

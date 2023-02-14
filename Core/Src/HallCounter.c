@@ -32,20 +32,23 @@ void StartHallConverter(void *argument) {
         //enter critical section
         if(osMutexAcquire(hallStoreMutexHandle, mutexTimeout) == osOK) {
 
-            //buffer the counted values
+            //cache the counted values
             bufL = countL;
             bufR = countR;
 
             //leave critical section
             osMutexRelease(hallStoreMutexHandle);
 
-            //throw the value into the transfer functions
+            //throw the value into the transfer functions and update buffer
             speedL = wheel_speed_transfer_function(bufL);
             speedR = wheel_speed_transfer_function(bufR);
 
             //send the values into queues
             osMessageQueuePut(hallLHandle, &speedL, 0, 0); //TODO
             osMessageQueuePut(hallRHandle, &speedR, 0, 0); //need timeout exception handling 
+
+            //report as done
+            osEventFlagsSet(sensorEventGroupHandle, hallTaskCplt);
         }
         else {//timeout on Mutex
 
@@ -53,6 +56,9 @@ void StartHallConverter(void *argument) {
             osMessageQueuePut(hallLHandle, &speedL, 0, 0); 
             osMessageQueuePut(hallRHandle, &speedR, 0, 0); 
             //probably needs error reporting
+
+            //report as done
+            osEventFlagsSet(sensorEventGroupHandle, hallTaskCplt);
         }
     }
 }
@@ -80,11 +86,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     }
 }
 
-void StarthallCounterStorer(void *argument) {
+void StarthallCountStorer(void *argument) {
     for(;;) {
 
         /*wait for ISR signalling*/
-        osThreadFlagsWait(timerLapEvent, osFlagsWaitAll, osWaitForever);
+        osThreadFlagsWait(timerLapEvent, osFlagsWaitAny, osWaitForever);
         
         /*enter critical section*/
         if(osMutexAcquire(hallStoreMutexHandle, mutexTimeout) == osOK) {
@@ -152,5 +158,4 @@ static inline uint16_t wheel_speed_transfer_function(uint32_t reading){
 	float value = 0.0;
 	value = input *HALL_FREQ /tooth_per_rev *pi *256; //TODO update 100 with real timer values
 	return (uint16_t)value;
-
 }

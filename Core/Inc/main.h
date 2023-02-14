@@ -45,6 +45,7 @@ extern "C" {
 /*flags for sensor event group*/
 static const uint32_t sensorStartEvent = 1U;
 static const uint32_t adcTaskCplt = 1U << 1;
+static const uint32_t hallTaskCplt = 1U << 2;
 
 /*flags for hall timer proxy*/
 static const uint32_t timerLapEvent = 1U;
