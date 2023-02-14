@@ -150,7 +150,7 @@ static inline uint16_t wheel_speed_transfer_function(uint32_t reading){
 	float input = reading;
 	const float tooth_per_rev = 14.0;
 	float value = 0.0;
-	value = input *100 /tooth_per_rev *pi *256; //TODO update 100 with real timer values
+	value = input *HALL_FREQ /tooth_per_rev *pi *256; //TODO update 100 with real timer values
 	return (uint16_t)value;
 
 }
