@@ -1,9 +1,12 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include <stdio.h>
-#include <string.h>
 
- #define PRINTF_TEST
+
+#define PRINTF_TEST
+#ifdef PRINTF_TEST
+#define BUFSIZE 20
+#endif
 
 extern FDCAN_HandleTypeDef* p_hcan;
 extern UART_HandleTypeDef* p_huart_testCOM;
@@ -53,7 +56,7 @@ void StartCanProvider(void *argument) {
   uint16_t hallRreading = 0;
 
 #ifdef PRINTF_TEST
-  char buf[25] = {0};
+  char buf[BUFSIZE] = {0};
 #endif
 
   /*set up the reception filter*/
@@ -100,14 +103,22 @@ void StartCanProvider(void *argument) {
 
 #ifdef PRINTF_TEST
     /*test print*/
-    sprintf(buf, "%ld, %ld, %d, %d\r\n", adcLreading, adcRreading, hallLreading, hallRreading);
+    int length = sprintf(buf, "%ld, %ld\r\n", adcLreading, adcRreading);
 
     /*print it out*/
-    HAL_UART_Transmit(p_huart_testCOM, buf, strlen(buf), HAL_MAX_DELAY);
+    if(length != -1) {
+      HAL_UART_Transmit(p_huart_testCOM, buf, length + 1, HAL_MAX_DELAY);
+    }
+
+    length = sprintf(buf, "%d, %d\r\n", hallLreading, hallRreading);
+    if(length != -1) {
+	  HAL_UART_Transmit(p_huart_testCOM, buf, length + 1, HAL_MAX_DELAY);
+	}
 #endif
     /*output to CAN*/
 
-    osDelay(100);
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    osDelay(10);
   }
 }
 
