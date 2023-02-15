@@ -1,6 +1,8 @@
 #include "main.h"
 #include "cmsis_os2.h"
 
+extern TIM_HandleTypeDef* const p_htim_hallSensorBase;
+
 extern osEventFlagsId_t sensorEventGroupHandle;
 extern osMessageQueueId_t hallLHandle;
 extern osMessageQueueId_t hallRHandle;
@@ -83,10 +85,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
         //leave critical section
         osSemaphoreRelease(hallCounterBinSemHandle);
+        // HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 
 void StarthallCountStorer(void *argument) {
+
+    //start the hardware timer
+    HAL_TIM_Base_Start_IT(p_htim_hallSensorBase);
+
     for(;;) {
 
         /*wait for ISR signalling*/
