@@ -59,7 +59,7 @@ UART_HandleTypeDef huart2;
 
 /* Definitions for canProvider */
 osThreadId_t canProviderHandle;
-uint32_t canProviderBuffer[ 128 ];
+uint32_t canProviderBuffer[ 256 ];
 osStaticThreadDef_t canProviderControlBlock;
 const osThreadAttr_t canProvider_attributes = {
   .name = "canProvider",
@@ -168,8 +168,8 @@ static void MX_ADC2_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM6_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_TIM16_Init(void);
+static void MX_USART2_UART_Init(void);
 void StartCanProvider(void *argument);
 void StartHallConverter(void *argument);
 void StartAdcReader(void *argument);
@@ -218,8 +218,8 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   MX_TIM6_Init();
-  MX_USART2_UART_Init();
   MX_TIM16_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   
   /* USER CODE END 2 */
@@ -711,8 +711,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : R_HALL_Pin */
   GPIO_InitStruct.Pin = R_HALL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(R_HALL_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BRAKE_LIGHT_Pin LD2_Pin */
@@ -724,8 +724,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : L_HALL_Pin */
   GPIO_InitStruct.Pin = L_HALL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(L_HALL_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
