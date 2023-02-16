@@ -103,7 +103,7 @@ void StartCanProvider(void *argument) {
 
 #ifdef PRINTF_TEST
     /*test print*/
-    int length = sprintf(buf, "%ld, %ld\r\n", adcLreading, adcRreading);
+    int length = sprintf(buf, "%ld, %ld, ", adcLreading, adcRreading);
 
     /*print it out*/
     if(length != -1) {
@@ -116,9 +116,9 @@ void StartCanProvider(void *argument) {
 	}
 #endif
     /*output to CAN*/
-
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    osDelay(10);
+    
+//    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    osDelay(100);
   }
 }
 

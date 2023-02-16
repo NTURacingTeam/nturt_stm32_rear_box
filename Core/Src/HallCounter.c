@@ -42,8 +42,10 @@ void StartHallConverter(void *argument) {
             osMutexRelease(hallStoreMutexHandle);
 
             //throw the value into the transfer functions and update buffer
-            speedL = wheel_speed_transfer_function(bufL);
-            speedR = wheel_speed_transfer_function(bufR);
+            // speedL = wheel_speed_transfer_function(bufL);
+            // speedR = wheel_speed_transfer_function(bufR);
+            speedL = bufL;
+            speedL = bufR;
 
             //send the values into queues
             osMessageQueuePut(hallLHandle, &speedL, 0, 0); //TODO
@@ -85,7 +87,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
         //leave critical section
         osSemaphoreRelease(hallCounterBinSemHandle);
-        // HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 
@@ -165,4 +167,18 @@ static inline uint16_t wheel_speed_transfer_function(uint32_t reading){
 	float value = 0.0;
 	value = input *HALL_FREQ /tooth_per_rev *pi *256; //TODO update 100 with real timer values
 	return (uint16_t)value;
+}
+
+/*unused for now. just for notes*/
+/*100kmh should corrispond to   243 teeth interrupt per second*/
+uint8_t rpm_to_kmh_converter(uint32_t rpm){
+	//deal with negative values
+	if(rpm & 0x8000 == 0x8000){ //check sign bit
+		return 0;
+	}
+	const float pi = 3.14159;
+	const float gear_ratio = 4.2; //TODO check ratio
+	const float radius = 0.254; //m
+	const float circumference = radius * 2 * pi;
+	return rpm * gear_ratio * circumference * 60 / 1000;
 }
