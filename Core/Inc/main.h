@@ -65,7 +65,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define HALL_FREQ 1
+#define HALL_FREQ 100
 #define R_SUS_Pin GPIO_PIN_0
 #define R_SUS_GPIO_Port GPIOA
 #define USART2_TX_Pin GPIO_PIN_2

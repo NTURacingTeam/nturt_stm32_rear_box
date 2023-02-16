@@ -42,10 +42,8 @@ void StartHallConverter(void *argument) {
             osMutexRelease(hallStoreMutexHandle);
 
             //throw the value into the transfer functions and update buffer
-            // speedL = wheel_speed_transfer_function(bufL);
-            // speedR = wheel_speed_transfer_function(bufR);
-            speedL = bufL;
-            speedL = bufR;
+            speedL = wheel_speed_transfer_function(bufL);
+            speedR = wheel_speed_transfer_function(bufR);
 
             //send the values into queues
             osMessageQueuePut(hallLHandle, &speedL, 0, 0); //TODO
