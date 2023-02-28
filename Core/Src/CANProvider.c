@@ -3,13 +3,14 @@
 #include <stdio.h>
 
 
-#define PRINTF_TEST
+// #define PRINTF_TEST
 #ifdef PRINTF_TEST
 #define BUFSIZE 20
+
+extern UART_HandleTypeDef* p_huart_testCOM;
 #endif
 
 extern FDCAN_HandleTypeDef* p_hcan;
-extern UART_HandleTypeDef* p_huart_testCOM;
 
 extern osMessageQueueId_t adcLHandle;
 extern osMessageQueueId_t adcRHandle;
@@ -19,7 +20,7 @@ extern osMessageQueueId_t hallRHandle;
 extern osEventFlagsId_t sensorEventGroupHandle;
 
 static const FDCAN_TxHeaderTypeDef CanHeader1 = {
-  .Identifier = 0x080AD093,
+  .Identifier = 0x080AD094,
   .IdType = FDCAN_EXTENDED_ID,
   .TxFrameType = FDCAN_DATA_FRAME,
   .DataLength = FDCAN_DLC_BYTES_8,
@@ -31,7 +32,7 @@ static const FDCAN_TxHeaderTypeDef CanHeader1 = {
 };
 
 static const FDCAN_TxHeaderTypeDef CanHeader2 = {
-  .Identifier = 0x080AD094,
+  .Identifier = 0x080AD095,
   .IdType = FDCAN_EXTENDED_ID,
   .TxFrameType = FDCAN_DATA_FRAME,
   .DataLength = FDCAN_DLC_BYTES_8,
@@ -80,13 +81,6 @@ void StartCanProvider(void *argument) {
 
   for(;;)
   {
-    // /*read data from queue*/
-    // osMessageQueueGet(adcLHandle, &adcLreading, NULL, queueTimeout);
-    // /*format the CAN frame*/
-    // /*send the message*/
-    // HAL_FDCAN_AddMessageToTxFifoQ(p_hcan, &CanHeader1, payload1);
-    // HAL_FDCAN_AddMessageToTxFifoQ(p_hcan, &CanHeader2, payload2);
-    
     /*start the sensor*/
     osEventFlagsSet(sensorEventGroupHandle, sensorStartEvent);
 
@@ -116,8 +110,8 @@ void StartCanProvider(void *argument) {
 	}
 #endif
     /*output to CAN*/
-    
-//    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    HAL_FDCAN_AddMessageToTxFifoQ(p_hcan, &CanHeader1, payload1);    
+
     osDelay(100);
   }
 }
