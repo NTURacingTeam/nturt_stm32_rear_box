@@ -51,6 +51,8 @@ ADC_HandleTypeDef hadc2;
 FDCAN_HandleTypeDef hfdcan1;
 
 I2C_HandleTypeDef hi2c1;
+DMA_HandleTypeDef hdma_i2c1_rx;
+DMA_HandleTypeDef hdma_i2c1_tx;
 
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim16;
@@ -153,7 +155,8 @@ const osEventFlagsAttr_t sensorEventGroup_attributes = {
 ADC_HandleTypeDef* const p_hadc_susR = &hadc2;
 ADC_HandleTypeDef* const p_hadc_susL = &hadc1;
 FDCAN_HandleTypeDef* const p_hcan = &hfdcan1;
-I2C_HandleTypeDef* const p_hi2c_tireTemp = &hi2c1;
+I2C_HandleTypeDef* const p_hi2c_tireTempR = &hi2c1;
+DMA_HandleTypeDef* const p_hdma_tireTempR = &hdma_i2c1_rx;
 TIM_HandleTypeDef* const p_htim_hallSensorBase = &htim6;
 UART_HandleTypeDef* const p_huart_testCOM = &huart2;
 TIM_HandleTypeDef* const p_htim_rtosStatBase = &htim16;
@@ -168,8 +171,9 @@ static void MX_ADC2_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM6_Init(void);
-static void MX_TIM16_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM16_Init(void);
 void StartCanProvider(void *argument);
 void StartHallConverter(void *argument);
 void StartAdcReader(void *argument);
@@ -218,8 +222,9 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   MX_TIM6_Init();
-  MX_TIM16_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
+  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
   
   /* USER CODE END 2 */
@@ -543,7 +548,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x30B0AAF7;
+  hi2c1.Init.Timing = 0xB0303ED9;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -690,6 +695,29 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMAMUX1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMAMUX_OVR_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMAMUX_OVR_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMAMUX_OVR_IRQn);
 
 }
 
