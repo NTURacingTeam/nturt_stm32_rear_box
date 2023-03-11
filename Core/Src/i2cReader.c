@@ -26,6 +26,7 @@
 #include <cmsis_os2.h>
 
 extern I2C_HandleTypeDef* const p_hi2c_tireTempR;
+extern CRC_HandleTypeDef* const p_hcrc_i2c;
 
 static const tempSensorAddr = 0b0001010;
 static const uint8_t startupCommand[5][4] = {
@@ -43,7 +44,7 @@ static const uint32_t i2cTxTimeout = 2U;
 static uint8_t CRC8_Calc(uint8_t* rawData, uint8_t size);
 
 void StartI2cReader(void *argument) {
-    uint8_t rawData[19] = {0};
+    volatile uint8_t rawData[19] = {0};
 
     //wait for 20ms
     osDelay(20);
@@ -90,5 +91,6 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
 
 static uint8_t CRC8_Check(uint8_t* rawData, uint8_t size) {
     //TODO: check CRC
+    HAL_CRC_Calculate(p_hcrc_i2c, rawData, size);
     return 0;
 }
