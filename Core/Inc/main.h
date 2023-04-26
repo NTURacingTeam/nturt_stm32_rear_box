@@ -87,6 +87,8 @@ void Error_Handler(void);
 #define T_SWDIO_GPIO_Port GPIOA
 #define T_SWCLK_Pin GPIO_PIN_14
 #define T_SWCLK_GPIO_Port GPIOA
+#define LTT_SCL_Pin GPIO_PIN_15
+#define LTT_SCL_GPIO_Port GPIOA
 #define BRAKE_LIGHT_Pin GPIO_PIN_4
 #define BRAKE_LIGHT_GPIO_Port GPIOB
 #define RTT_SDA_Pin GPIO_PIN_5
@@ -94,6 +96,8 @@ void Error_Handler(void);
 #define L_HALL_Pin GPIO_PIN_6
 #define L_HALL_GPIO_Port GPIOB
 #define L_HALL_EXTI_IRQn EXTI9_5_IRQn
+#define LTT_SDA_Pin GPIO_PIN_7
+#define LTT_SDA_GPIO_Port GPIOB
 #define LD2_Pin GPIO_PIN_8
 #define LD2_GPIO_Port GPIOB
 

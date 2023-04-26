@@ -30,6 +30,7 @@
 #define USE_D6T
 
 extern I2C_HandleTypeDef* const p_hi2c_tireTempR;
+extern I2C_HandleTypeDef* const p_hi2c_tireTempL;
 extern CRC_HandleTypeDef* const p_hcrc_i2c;
 
 #ifdef USE_D6T
@@ -42,7 +43,8 @@ static const uint8_t startupCommand[5][4] = {
     {0x03, 0x00, 0x07, 0x97},
     {0x92, 0x00, 0x00, 0xE9}
 };
-volatile uint8_t rawData[22] = {0};
+volatile uint8_t rawDataR[22] = {0};
+volatile uint8_t rawDataL[22] = {0};
 #else
 //TODO: MLX90614 variables
 #endif
@@ -55,13 +57,13 @@ static const uint32_t i2cTxTimeout = 5U;
 // time for all the bits be read is 19*9*0.01 = 1.98 ms for 100k baud
 static const uint32_t i2cRxTimeout = 4U;
 
-static uint8_t CRC8_Calc(uint8_t* rawData, uint8_t size);
+static uint8_t CRC8_Calc(uint8_t* rawDataR, uint8_t size);
 
 void StartI2cReader(void *argument) {
-    rawData[0] = tempSensorAddr<<1;
-    rawData[1] = getCommand;
-    rawData[2] = (tempSensorAddr << 1) + 1;
-    volatile uint8_t* payload = &(rawData[3]);
+    rawDataR[0] = tempSensorAddr<<1;
+    rawDataR[1] = getCommand;
+    rawDataR[2] = (tempSensorAddr << 1) + 1;
+    volatile uint8_t* payload = &(rawDataR[3]);
 
     //wait for 20ms
     osDelay(20);
@@ -87,7 +89,7 @@ void StartI2cReader(void *argument) {
         osThreadFlagsWait(i2cRRxCpltFlag, osFlagsWaitAny, i2cRxTimeout);
 
         //check CRC
-        if(HAL_CRC_Calculate(p_hcrc_i2c, rawData, 21) != rawData[21]) {
+        if(HAL_CRC_Calculate(p_hcrc_i2c, rawDataR, 21) != rawDataR[21]) {
             HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
             //TODO: PEC error handling
         }
