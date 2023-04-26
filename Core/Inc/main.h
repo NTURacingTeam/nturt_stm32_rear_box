@@ -77,6 +77,8 @@ void Error_Handler(void);
 #define R_HALL_EXTI_IRQn EXTI4_IRQn
 #define L_SUS_Pin GPIO_PIN_0
 #define L_SUS_GPIO_Port GPIOB
+#define RTT_SCL_Pin GPIO_PIN_8
+#define RTT_SCL_GPIO_Port GPIOA
 #define CAN_RX_Pin GPIO_PIN_11
 #define CAN_RX_GPIO_Port GPIOA
 #define CAN_RXA12_Pin GPIO_PIN_12
@@ -85,15 +87,13 @@ void Error_Handler(void);
 #define T_SWDIO_GPIO_Port GPIOA
 #define T_SWCLK_Pin GPIO_PIN_14
 #define T_SWCLK_GPIO_Port GPIOA
-#define I2C1_SCL_Pin GPIO_PIN_15
-#define I2C1_SCL_GPIO_Port GPIOA
 #define BRAKE_LIGHT_Pin GPIO_PIN_4
 #define BRAKE_LIGHT_GPIO_Port GPIOB
+#define RTT_SDA_Pin GPIO_PIN_5
+#define RTT_SDA_GPIO_Port GPIOB
 #define L_HALL_Pin GPIO_PIN_6
 #define L_HALL_GPIO_Port GPIOB
 #define L_HALL_EXTI_IRQn EXTI9_5_IRQn
-#define I2C1_SDA_Pin GPIO_PIN_7
-#define I2C1_SDA_GPIO_Port GPIOB
 #define LD2_Pin GPIO_PIN_8
 #define LD2_GPIO_Port GPIOB
 
