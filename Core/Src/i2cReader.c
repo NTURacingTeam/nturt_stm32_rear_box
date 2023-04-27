@@ -34,16 +34,6 @@ extern I2C_HandleTypeDef* const p_hi2c_tireTempL;
 extern CRC_HandleTypeDef* const p_hcrc_i2c;
 
 #ifdef USE_D6T
-static const tempSensorAddr = 0b0001010;
-static const uint8_t getCommand = 0x4C;
-static const uint8_t startupCommand[5][4] = {
-    {0x02, 0x00, 0x01, 0xEE},
-    {0x05, 0x90, 0x3A, 0xB8},
-    {0x03, 0x00, 0x03, 0x8B},
-    {0x03, 0x00, 0x07, 0x97},
-    {0x92, 0x00, 0x00, 0xE9}
-};
-
 volatile uint8_t rawDataR[22] = {0};
 volatile uint8_t rawDataL[22] = {0};
 #else
@@ -59,42 +49,18 @@ static const uint32_t i2cLTxCpltFlag = 1U << 2;
 static const uint32_t i2cLRxCpltFlag = 1U << 3;
 
 static const uint32_t i2cTxTimeout = 5U;
-// time for all the bits be read is 19*9*0.01 = 1.98 ms for 100k baud
+//For D6T, time for all the bits be read is 19*9*0.01 = 1.98 ms for 100k baud
 static const uint32_t i2cRxTimeout = 4U;
 
+static void init_D6T(I2C_HandleTypeDef* const, volatile uint8_t*, uint32_t);
 
 void StartI2cReader(void *argument) {
-    rawDataR[0] = tempSensorAddr<<1;
-    rawDataR[1] = getCommand;
-    rawDataR[2] = (tempSensorAddr << 1) + 1;
-    volatile uint8_t* payloadR = &(rawDataR[3]);
-
-    rawDataL[0] = tempSensorAddr<<1;
-    rawDataL[1] = getCommand;
-    rawDataL[2] = (tempSensorAddr << 1) + 1;
-    volatile uint8_t* payloadL = &(rawDataL[3]);
-
     //wait for 20ms
     osDelay(20);
 
-    //init sensor 
-    //TODO: pipeline the sensor init or do them one by one and wrap the whole thing in function
-    if(HAL_I2C_IsDeviceReady(p_hi2c_tireTempR, tempSensorAddr << 1, 5, 0xF) == HAL_OK) {
-        for(int i = 0; i<5; i++) {
-            HAL_I2C_Master_Transmit_DMA(p_hi2c_tireTempR, tempSensorAddr << 1, startupCommand[i], 4);
-            osThreadFlagsWait(i2cRTxCpltFlag, osFlagsWaitAny, i2cTxTimeout);
-        }
-    } else {
-        //TODO: report error - cannot connect to sensor
-    }
-    if(HAL_I2C_IsDeviceReady(p_hi2c_tireTempL, tempSensorAddr << 1, 5, 0xF) == HAL_OK) {
-        for(int i = 0; i<5; i++) {
-            HAL_I2C_Master_Transmit_DMA(p_hi2c_tireTempL, tempSensorAddr << 1, startupCommand[i], 4);
-            osThreadFlagsWait(i2cLTxCpltFlag, osFlagsWaitAny, i2cTxTimeout);
-        }
-    } else {
-        //TODO: report error - cannot connect to sensor
-    }
+    //initialize D6T sensors and the rawData array
+    init_D6T(p_hi2c_tireTempR, rawDataR, i2cRTxCpltFlag);
+    init_D6T(p_hi2c_tireTempL, rawDataL, i2cLTxCpltFlag);
     
     //wait for 500ms
     osDelay(500);
@@ -103,8 +69,8 @@ void StartI2cReader(void *argument) {
         //read data
         //TODO: here HAL writes commands in Poll mode, then reads in DMA mode. can use 2 DMA with "seq" APIs if we want 
         //max performance
-        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, tempSensorAddr << 1, getCommand, 1, payloadR, 19);
-        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, tempSensorAddr << 1, getCommand, 1, payloadL, 19);
+        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, rawDataR[0], rawDataR[1], 1, &(rawDataR[3]), 19);
+        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, rawDataL[0], rawDataL[1], 1, &(rawDataL[3]), 19);
         osThreadFlagsWait(i2cRRxCpltFlag | i2cLRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
 
         //check CRC TODO: maybe function the whole thing?
@@ -145,4 +111,32 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
 
 void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
     //TODO: error handling
+}
+
+static void init_D6T(I2C_HandleTypeDef* const hi2c, volatile uint8_t* rawData, uint32_t txThreadFlag) {
+    //fixed parameters of D6T sensors: address, I2C command to get data, and the startup transmissions
+    const uint8_t D6Taddr = 0b0001010;
+    const uint8_t getCommand = 0x4C;
+    const uint8_t startupCommand[5][4] = {
+        {0x02, 0x00, 0x01, 0xEE},
+        {0x05, 0x90, 0x3A, 0xB8},
+        {0x03, 0x00, 0x03, 0x8B},
+        {0x03, 0x00, 0x07, 0x97},
+        {0x92, 0x00, 0x00, 0xE9}
+    };
+
+    //fill the first 3 bytes of rawData with these data since they will be used in CRC
+    rawData[0] = D6Taddr<<1;
+    rawData[1] = getCommand;
+    rawData[2] = (D6Taddr << 1) + 1;
+
+    //init sensor 
+    if(HAL_I2C_IsDeviceReady(hi2c, D6Taddr << 1, 5, 0xF) == HAL_OK) {
+        for(int i = 0; i<5; i++) {
+            HAL_I2C_Master_Transmit_DMA(hi2c, D6Taddr << 1, startupCommand[i], 4);
+            osThreadFlagsWait(txThreadFlag, osFlagsWaitAny, i2cTxTimeout);
+        }
+    } else {
+        //TODO: report error - cannot connect to sensor
+    }
 }
