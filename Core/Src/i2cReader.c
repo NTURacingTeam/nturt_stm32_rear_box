@@ -43,6 +43,7 @@ static const uint8_t startupCommand[5][4] = {
     {0x03, 0x00, 0x07, 0x97},
     {0x92, 0x00, 0x00, 0xE9}
 };
+
 volatile uint8_t rawDataR[22] = {0};
 volatile uint8_t rawDataL[22] = {0};
 #else
@@ -51,28 +52,45 @@ volatile uint8_t rawDataL[22] = {0};
 
 
 extern osThreadId_t i2cReaderHandle;
+
 static const uint32_t i2cRTxCpltFlag = 1U;
 static const uint32_t i2cRRxCpltFlag = 1U << 1;
+static const uint32_t i2cLTxCpltFlag = 1U << 2;
+static const uint32_t i2cLRxCpltFlag = 1U << 3;
+
 static const uint32_t i2cTxTimeout = 5U;
 // time for all the bits be read is 19*9*0.01 = 1.98 ms for 100k baud
 static const uint32_t i2cRxTimeout = 4U;
 
-static uint8_t CRC8_Calc(uint8_t* rawDataR, uint8_t size);
 
 void StartI2cReader(void *argument) {
     rawDataR[0] = tempSensorAddr<<1;
     rawDataR[1] = getCommand;
     rawDataR[2] = (tempSensorAddr << 1) + 1;
-    volatile uint8_t* payload = &(rawDataR[3]);
+    volatile uint8_t* payloadR = &(rawDataR[3]);
+
+    rawDataL[0] = tempSensorAddr<<1;
+    rawDataL[1] = getCommand;
+    rawDataL[2] = (tempSensorAddr << 1) + 1;
+    volatile uint8_t* payloadL = &(rawDataL[3]);
 
     //wait for 20ms
     osDelay(20);
 
-    //init sensor
+    //init sensor 
+    //TODO: pipeline the sensor init or do them one by one and wrap the whole thing in function
     if(HAL_I2C_IsDeviceReady(p_hi2c_tireTempR, tempSensorAddr << 1, 5, 0xF) == HAL_OK) {
         for(int i = 0; i<5; i++) {
             HAL_I2C_Master_Transmit_DMA(p_hi2c_tireTempR, tempSensorAddr << 1, startupCommand[i], 4);
             osThreadFlagsWait(i2cRTxCpltFlag, osFlagsWaitAny, i2cTxTimeout);
+        }
+    } else {
+        //TODO: report error - cannot connect to sensor
+    }
+    if(HAL_I2C_IsDeviceReady(p_hi2c_tireTempL, tempSensorAddr << 1, 5, 0xF) == HAL_OK) {
+        for(int i = 0; i<5; i++) {
+            HAL_I2C_Master_Transmit_DMA(p_hi2c_tireTempL, tempSensorAddr << 1, startupCommand[i], 4);
+            osThreadFlagsWait(i2cLTxCpltFlag, osFlagsWaitAny, i2cTxTimeout);
         }
     } else {
         //TODO: report error - cannot connect to sensor
@@ -85,11 +103,17 @@ void StartI2cReader(void *argument) {
         //read data
         //TODO: here HAL writes commands in Poll mode, then reads in DMA mode. can use 2 DMA with "seq" APIs if we want 
         //max performance
-        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, tempSensorAddr << 1, getCommand, 1, payload, 19);
-        osThreadFlagsWait(i2cRRxCpltFlag, osFlagsWaitAny, i2cRxTimeout);
+        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, tempSensorAddr << 1, getCommand, 1, payloadR, 19);
+        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, tempSensorAddr << 1, getCommand, 1, payloadL, 19);
+        osThreadFlagsWait(i2cRRxCpltFlag | i2cLRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
 
-        //check CRC
+        //check CRC TODO: maybe function the whole thing?
         if(HAL_CRC_Calculate(p_hcrc_i2c, rawDataR, 21) != rawDataR[21]) {
+            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+            //TODO: PEC error handling
+        }
+        //check CRC
+        if(HAL_CRC_Calculate(p_hcrc_i2c, rawDataL, 21) != rawDataL[21]) {
             HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
             //TODO: PEC error handling
         }
@@ -102,19 +126,23 @@ void StartI2cReader(void *argument) {
 }
 
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    osThreadFlagsSet(i2cReaderHandle, i2cRTxCpltFlag);
+    if(hi2c == p_hi2c_tireTempL) {
+        osThreadFlagsSet(i2cReaderHandle, i2cLTxCpltFlag);
+    }
+    else if (hi2c == p_hi2c_tireTempR) {
+        osThreadFlagsSet(i2cReaderHandle, i2cRTxCpltFlag);
+    }
 }
 
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    osThreadFlagsSet(i2cReaderHandle, i2cRRxCpltFlag);
+    if(hi2c == p_hi2c_tireTempR) {
+        osThreadFlagsSet(i2cReaderHandle, i2cRRxCpltFlag);
+    }
+    else if (hi2c == p_hi2c_tireTempL) {
+        osThreadFlagsSet(i2cReaderHandle, i2cLRxCpltFlag);
+    }
 }
 
 void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
     //TODO: error handling
-}
-
-static uint8_t CRC8_Check(uint8_t* rawData, uint8_t size) {
-    //TODO: check CRC
-    HAL_CRC_Calculate(p_hcrc_i2c, rawData, size);
-    return 0;
 }
