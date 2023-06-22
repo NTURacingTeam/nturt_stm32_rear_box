@@ -66,8 +66,8 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define HALL_FREQ 100
-#define R_HAL_Pin GPIO_PIN_0
-#define R_HAL_GPIO_Port GPIOA
+#define R_HALL_Pin GPIO_PIN_0
+#define R_HALL_GPIO_Port GPIOA
 #define USART2_TX_Pin GPIO_PIN_2
 #define USART2_TX_GPIO_Port GPIOA
 #define USART2_RX_Pin GPIO_PIN_3
