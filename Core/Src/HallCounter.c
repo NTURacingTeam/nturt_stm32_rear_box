@@ -1,7 +1,7 @@
 #include "main.h"
 #include "cmsis_os2.h"
 
-extern TIM_HandleTypeDef* const p_htim_hallSensorBase;
+extern TIM_HandleTypeDef *const p_htim_hallSensorBase;
 
 extern osEventFlagsId_t sensorEventGroupHandle;
 extern osMessageQueueId_t hallLHandle;
@@ -22,156 +22,155 @@ static inline uint16_t wheel_speed_transfer_function(uint32_t);
 static const uint32_t mutexTimeout = 2U;
 
 void StartHallConverter(void *argument) {
-    uint32_t bufL = 0;
-    uint32_t bufR = 0;
-    uint16_t speedL = 0;
-    uint16_t speedR = 0;
-    for(;;) {
+	uint32_t bufL = 0;
+	uint32_t bufR = 0;
+	uint16_t speedL = 0;
+	uint16_t speedR = 0;
+	for (;;) {
 
-        //wait for another thread to send signal here
-        osEventFlagsWait(sensorEventGroupHandle, sensorStartEvent, osFlagsWaitAll, osWaitForever);
+		//wait for another thread to send signal here
+		osEventFlagsWait(sensorEventGroupHandle, sensorStartEvent,
+				osFlagsWaitAll, osWaitForever);
 
-        //enter critical section
-        if(osMutexAcquire(hallStoreMutexHandle, mutexTimeout) == osOK) {
+		//enter critical section
+		if (osMutexAcquire(hallStoreMutexHandle, mutexTimeout) == osOK) {
 
-            //cache the counted values
-            bufL = countL;
-            bufR = countR;
+			//cache the counted values
+			bufL = countL;
+			bufR = countR;
 
-            //leave critical section
-            osMutexRelease(hallStoreMutexHandle);
+			//leave critical section
+			osMutexRelease(hallStoreMutexHandle);
 
-            //throw the value into the transfer functions and update buffer
-            speedL = wheel_speed_transfer_function(bufL);
-            speedR = wheel_speed_transfer_function(bufR);
+			//throw the value into the transfer functions and update buffer
+			speedL = wheel_speed_transfer_function(bufL);
+			speedR = wheel_speed_transfer_function(bufR);
+			printf("HALCounter.c: Left:%d, Right:%d (calculated speed)\n", speedL, speedR);
+			//send the values into queues
+			osMessageQueuePut(hallLHandle, &speedL, 0, 0); //TODO
+			osMessageQueuePut(hallRHandle, &speedR, 0, 0); //need timeout exception handling 
 
-            //send the values into queues
-            osMessageQueuePut(hallLHandle, &speedL, 0, 0); //TODO
-            osMessageQueuePut(hallRHandle, &speedR, 0, 0); //need timeout exception handling 
+			//report as done
+			osEventFlagsSet(sensorEventGroupHandle, hallTaskCplt);
+		} else { //timeout on Mutex
 
-            //report as done
-            osEventFlagsSet(sensorEventGroupHandle, hallTaskCplt);
-        }
-        else {//timeout on Mutex
+			//use old value instead
+			osMessageQueuePut(hallLHandle, &speedL, 0, 0);
+			osMessageQueuePut(hallRHandle, &speedR, 0, 0);
+			//probably needs error reporting
 
-            //use old value instead
-            osMessageQueuePut(hallLHandle, &speedL, 0, 0); 
-            osMessageQueuePut(hallRHandle, &speedR, 0, 0); 
-            //probably needs error reporting
-
-            //report as done
-            osEventFlagsSet(sensorEventGroupHandle, hallTaskCplt);
-        }
-    }
+			//report as done
+			osEventFlagsSet(sensorEventGroupHandle, hallTaskCplt);
+		}
+	}
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
-    //enter critical sections
-    //ignore current signal if the semaphore is taken
-    if(osSemaphoreAcquire(hallCounterBinSemHandle, 0) == osOK) {
+	//enter critical sections
+	//ignore current signal if the semaphore is taken
+	if (osSemaphoreAcquire(hallCounterBinSemHandle, 0) == osOK) {
 
-        //increase the counter value by 1 based on the GPIO that got the edge signal
-        switch(GPIO_Pin) {
-            case R_HALL_Pin:
-                counterR++;
-                break;
-            case L_HALL_Pin:
-                counterL++;
-                break;
-            default:
-                ; //TODO: handle exception
-        }
+		//increase the counter value by 1 based on the GPIO that got the edge signal
+		switch (GPIO_Pin) {
+		case R_HALL_Pin:
+			counterR++;
+			break;
+		case L_HALL_Pin:
+			counterL++;
+			break;
+		default:
+			; //TODO: handle exception
+		}
 
-        //leave critical section
-        osSemaphoreRelease(hallCounterBinSemHandle);
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    }
+		//leave critical section
+		osSemaphoreRelease(hallCounterBinSemHandle);
+		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+	}
 }
 
 void StarthallCountStorer(void *argument) {
 
-    //start the hardware timer
-    HAL_TIM_Base_Start_IT(p_htim_hallSensorBase);
+	//start the hardware timer
+	HAL_TIM_Base_Start_IT(p_htim_hallSensorBase);
 
-    for(;;) {
+	for (;;) {
 
-        /*wait for ISR signalling*/
-        osThreadFlagsWait(timerLapEvent, osFlagsWaitAny, osWaitForever);
-        
-        /*enter critical section*/
-        if(osMutexAcquire(hallStoreMutexHandle, mutexTimeout) == osOK) {
-            if(osSemaphoreAcquire(hallCounterBinSemHandle, mutexTimeout) == osOK) {
+		/*wait for ISR signalling*/
+		osThreadFlagsWait(timerLapEvent, osFlagsWaitAny, osWaitForever);
 
-                //if successively get both resources
-                countL = counterL;
-                countR = counterR;
+		/*enter critical section*/
+		if (osMutexAcquire(hallStoreMutexHandle, mutexTimeout) == osOK) {
+			if (osSemaphoreAcquire(hallCounterBinSemHandle, mutexTimeout)
+					== osOK) {
 
-                /*leaves count critical section*/
-                osMutexRelease(hallStoreMutexHandle);
+				//if successively get both resources
+				countL = counterL;
+				countR = counterR;
 
-                /*resets the counter*/
-                counterL = 0;
-                counterR = 0;
+				/*leaves count critical section*/
+				osMutexRelease(hallStoreMutexHandle);
 
-                /*leaves counter critical section*/
-                osSemaphoreRelease(hallCounterBinSemHandle);
+				/*resets the counter*/
+				counterL = 0;
+				counterR = 0;
 
-            }
-            else {
-                //timeout on the counter variable
-                osMutexRelease(hallStoreMutexHandle);
-                counterTimeoutHandler();
-            }
-        }
-        else { //timeout on the timed value, probably should throw a error notification on failed attempt to update
-            if(osSemaphoreAcquire(hallCounterBinSemHandle, mutexTimeout) == osOK) {
-                //tries to reset the counter
-                countL = 0;
-                countR = 0;
-                osSemaphoreRelease(hallCounterBinSemHandle);
-                countTimeoutHandler();
-            }
-            else {
-                countTimeoutHandler();
-                counterTimeoutHandler();
-            }
-        }
-    }
+				/*leaves counter critical section*/
+				osSemaphoreRelease(hallCounterBinSemHandle);
+
+			} else {
+				//timeout on the counter variable
+				osMutexRelease(hallStoreMutexHandle);
+				counterTimeoutHandler();
+			}
+		} else { //timeout on the timed value, probably should throw a error notification on failed attempt to update
+			if (osSemaphoreAcquire(hallCounterBinSemHandle, mutexTimeout)
+					== osOK) {
+				//tries to reset the counter
+				countL = 0;
+				countR = 0;
+				osSemaphoreRelease(hallCounterBinSemHandle);
+				countTimeoutHandler();
+			} else {
+				countTimeoutHandler();
+				counterTimeoutHandler();
+			}
+		}
+	}
 }
 
 static inline void countTimeoutHandler(void) {
-    //TODO
-    //timeout on the counter variable that should be written by the EXTI ISR
-    //probably should throw a error notification
+	//TODO
+	//timeout on the counter variable that should be written by the EXTI ISR
+	//probably should throw a error notification
 }
 
 static inline void counterTimeoutHandler(void) {
-    //TODO
-    //timeout on the count variable that should be written by the timer ISR
-    //probably should throw a error notification
+	//TODO
+	//timeout on the count variable that should be written by the timer ISR
+	//probably should throw a error notification
 }
 
 /**
-  * @brief  transfer function for the hall tachometer on ep4
-  * @param  reading: the number of hall trigger per 10ms
-  * @retval the wheel speed in rad/s, times 256
-  * @note the result is multiplied by 256 so that the MSB represents the integer part of the number while LSB represents the part less than 1
-  */
-static inline uint16_t wheel_speed_transfer_function(uint32_t reading){
+ * @brief  transfer function for the hall tachometer on ep4
+ * @param  reading: the number of hall trigger per 10ms
+ * @retval the wheel speed in rad/s, times 256
+ * @note the result is multiplied by 256 so that the MSB represents the integer part of the number while LSB represents the part less than 1
+ */
+static inline uint16_t wheel_speed_transfer_function(uint32_t reading) {
 	const float pi = 3.1415927;
 	float input = reading;
 	const float tooth_per_rev = 14.0;
 	float value = 0.0;
-	value = input *HALL_FREQ /tooth_per_rev *pi *256; //TODO update 100 with real timer values
-	return (uint16_t)value;
+	value = input * HALL_FREQ / tooth_per_rev * pi * 256; //TODO update 100 with real timer values
+	return (uint16_t) value;
 }
 
 /*unused for now. just for notes*/
 /*100kmh should corrispond to   243 teeth interrupt per second*/
-uint8_t rpm_to_kmh_converter(uint32_t rpm){
+uint8_t rpm_to_kmh_converter(uint32_t rpm) {
 	//deal with negative values
-	if(rpm & 0x8000 == 0x8000){ //check sign bit
+	if (rpm & 0x8000 == 0x8000) { //check sign bit
 		return 0;
 	}
 	const float pi = 3.14159;

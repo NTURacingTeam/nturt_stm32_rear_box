@@ -213,9 +213,7 @@ int main(void) {
 	MX_I2C3_Init();
 	MX_I2C1_Init();
 	/* USER CODE BEGIN 2 */
-	for (;;) {
-		printf("NTURT ep4 rearBox initializing");
-	}
+	printf("NTURT ep4 rearBox initializing\n");
 
 	/* USER CODE END 2 */
 
@@ -913,7 +911,8 @@ void startConsoleDebug(void *argument) {
 	/* USER CODE BEGIN startConsoleDebug */
 	/* Infinite loop */
 	for (;;) {
-		osDelay(1);
+		//printf("Console debugging! :)\n");
+		osDelay(100);
 	}
 	/* USER CODE END startConsoleDebug */
 }
