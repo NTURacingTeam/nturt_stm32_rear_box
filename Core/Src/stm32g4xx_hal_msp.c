@@ -161,7 +161,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**ADC2 GPIO Configuration
-    PA0     ------> ADC2_IN1
+    PA4     ------> ADC2_IN17
     */
     GPIO_InitStruct.Pin = R_SUS_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -227,7 +227,7 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     }
 
     /**ADC2 GPIO Configuration
-    PA0     ------> ADC2_IN1
+    PA4     ------> ADC2_IN17
     */
     HAL_GPIO_DeInit(R_SUS_GPIO_Port, R_SUS_Pin);
 
@@ -324,7 +324,7 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* hfdcan)
     PA11     ------> FDCAN1_RX
     PA12     ------> FDCAN1_TX
     */
-    GPIO_InitStruct.Pin = CAN_RX_Pin|CAN_RXA12_Pin;
+    GPIO_InitStruct.Pin = CAN_RX_Pin|CAN_TX_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -361,7 +361,7 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* hfdcan)
     PA11     ------> FDCAN1_RX
     PA12     ------> FDCAN1_TX
     */
-    HAL_GPIO_DeInit(GPIOA, CAN_RX_Pin|CAN_RXA12_Pin);
+    HAL_GPIO_DeInit(GPIOA, CAN_RX_Pin|CAN_TX_Pin);
 
     /* FDCAN1 interrupt DeInit */
     HAL_NVIC_DisableIRQ(FDCAN1_IT0_IRQn);

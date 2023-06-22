@@ -483,7 +483,7 @@ static void MX_ADC2_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Channel = ADC_CHANNEL_17;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_47CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -834,11 +834,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, BRAKE_LIGHT_Pin|LD2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : R_HALL_Pin */
-  GPIO_InitStruct.Pin = R_HALL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  /*Configure GPIO pin : R_HAL_Pin */
+  GPIO_InitStruct.Pin = R_HAL_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(R_HALL_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(R_HAL_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BRAKE_LIGHT_Pin LD2_Pin */
   GPIO_InitStruct.Pin = BRAKE_LIGHT_Pin|LD2_Pin;
@@ -854,9 +854,6 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(L_HALL_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
-
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 

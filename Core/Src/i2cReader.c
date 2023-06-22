@@ -28,21 +28,19 @@
 
 /*define the sensor type as D6T-8L-09H. otherwise MLX90614 from Melexis is used*/
 //#define USE_D6T
-
-extern I2C_HandleTypeDef* const p_hi2c_tireTempR;
-extern I2C_HandleTypeDef* const p_hi2c_tireTempL;
-extern CRC_HandleTypeDef* const p_hcrc_i2c;
+extern I2C_HandleTypeDef *const p_hi2c_tireTempR;
+extern I2C_HandleTypeDef *const p_hi2c_tireTempL;
+extern CRC_HandleTypeDef *const p_hcrc_i2c;
 
 #ifdef USE_D6T //D6T-8L-09H
 volatile uint8_t i2cStreamR[22] = {0};
 volatile uint8_t i2cStreamL[22] = {0};
 #else //MLX90614
-volatile uint8_t i2cStreamR1[6] = {0};
-volatile uint8_t i2cStreamR2[6] = {0};
-volatile uint8_t i2cStreamL1[6] = {0};
-volatile uint8_t i2cStreamL2[6] = {0};
+volatile uint8_t i2cStreamR1[6] = { 0 };
+volatile uint8_t i2cStreamR2[6] = { 0 };
+volatile uint8_t i2cStreamL1[6] = { 0 };
+volatile uint8_t i2cStreamL2[6] = { 0 };
 #endif
-
 
 extern osThreadId_t i2cReaderHandle;
 
@@ -73,40 +71,58 @@ void StartI2cReader(void *argument) {
     //wait for 500ms
     osDelay(500);
 #else
-    //initialize data buffers and check if the sensors are connected
-    init_MLX(p_hi2c_tireTempR, i2cStreamR1, i2cRTxCpltFlag);
-    init_MLX(p_hi2c_tireTempR, i2cStreamR2, i2cRTxCpltFlag);
-    init_MLX(p_hi2c_tireTempR, i2cStreamL1, i2cLTxCpltFlag);
-    init_MLX(p_hi2c_tireTempR, i2cStreamL2, i2cLTxCpltFlag);
+	//initialize data buffers and check if the sensors are connected
+	init_MLX(p_hi2c_tireTempR, i2cStreamR1, i2cRTxCpltFlag);
+	init_MLX(p_hi2c_tireTempR, i2cStreamR2, i2cRTxCpltFlag);
+	init_MLX(p_hi2c_tireTempR, i2cStreamL1, i2cLTxCpltFlag);
+	init_MLX(p_hi2c_tireTempR, i2cStreamL2, i2cLTxCpltFlag);
 #endif
 
-    for(;;) {
-        //read data
-        //TODO: here HAL writes commands in Poll mode, then reads in DMA mode. can use 2 DMA with "seq" APIs if we want 
-        //max performance
+	for (;;) {
+		//read data
+		//TODO: here HAL writes commands in Poll mode, then reads in DMA mode. can use 2 DMA with "seq" APIs if we want
+		//max performance
 #ifdef USE_D6T
         HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR[0], i2cStreamR[1], 1, &(i2cStreamR[3]), 19);
         HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL[0], i2cStreamL[1], 1, &(i2cStreamL[3]), 19);
         osThreadFlagsWait(i2cRRxCpltFlag | i2cLRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
 #else
-        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR1[0], i2cStreamR1[1], 1, &(i2cStreamR1[3]),3);
-        HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL1[0], i2cStreamL1[1], 1, &(i2cStreamL1[3]),3);
-        uint32_t firstCleared = osThreadFlagsWait(i2cLRxCpltFlag | i2cRRxCpltFlag, osFlagsWaitAny, i2cRxTimeout);
-        
-        switch(firstCleared) {
-            case i2cRRxCpltFlag:
-                HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR2[0], i2cStreamR2[1], 1, &(i2cStreamR2[3]),3);
-                osThreadFlagsWait(i2cLRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
-                HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL2[0], i2cStreamL2[1], 1, &(i2cStreamL2[3]),3);
-                break;
-            case i2cLRxCpltFlag:
-                HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL2[0], i2cStreamL2[1], 1, &(i2cStreamL2[3]),3);
-                osThreadFlagsWait(i2cRRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
-                HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR2[0], i2cStreamR2[1], 1, &(i2cStreamR2[3]),3);
-                break;
-            default:
-        }
-        osThreadFlagsWait(i2cLRxCpltFlag | i2cRRxCpltFlag, osFlagsWaitAny, i2cRxTimeout);
+		HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR1[0], i2cStreamR1[1],
+				1, &(i2cStreamR1[3]), 3);
+		HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL1[0], i2cStreamL1[1],
+				1, &(i2cStreamL1[3]), 3);
+		uint32_t firstCleared = osThreadFlagsWait(
+				i2cLRxCpltFlag | i2cRRxCpltFlag, osFlagsWaitAny, i2cRxTimeout);
+		// case must be compile time constant
+		if (firstCleared == i2cRRxCpltFlag)
+		{
+			HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR2[0], i2cStreamR2[1], 1, &(i2cStreamR2[3]),3);
+			osThreadFlagsWait(i2cLRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
+			HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL2[0], i2cStreamL2[1], 1, &(i2cStreamL2[3]),3);
+		}
+		else if (firstCleared ==i2cLRxCpltFlag ) {
+			HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL2[0], i2cStreamL2[1], 1, &(i2cStreamL2[3]),3);
+			osThreadFlagsWait(i2cRRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
+			HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR2[0], i2cStreamR2[1], 1, &(i2cStreamR2[3]),3);
+		}
+		/**
+		 switch(firstCleared) {
+		 case i2cRRxCpltFlag:
+		 HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR2[0], i2cStreamR2[1], 1, &(i2cStreamR2[3]),3);
+		 osThreadFlagsWait(i2cLRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
+		 HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL2[0], i2cStreamL2[1], 1, &(i2cStreamL2[3]),3);
+		 break;
+		 case i2cLRxCpltFlag:
+		 HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempL, i2cStreamL2[0], i2cStreamL2[1], 1, &(i2cStreamL2[3]),3);
+		 osThreadFlagsWait(i2cRRxCpltFlag, osFlagsWaitAll, i2cRxTimeout);
+		 HAL_I2C_Mem_Read_DMA(p_hi2c_tireTempR, i2cStreamR2[0], i2cStreamR2[1], 1, &(i2cStreamR2[3]),3);
+		 break;
+		 default:
+		 break;
+		 }
+		 */
+		osThreadFlagsWait(i2cLRxCpltFlag | i2cRRxCpltFlag, osFlagsWaitAny,
+				i2cRxTimeout);
 #endif
 #ifdef USE_D6T
         //check CRC TODO: maybe function the whole thing?
@@ -120,47 +136,45 @@ void StartI2cReader(void *argument) {
             //TODO: PEC error handling
         }
 #else
-        //error handling for MLX sensors
-        if(HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamL1, 5) != i2cStreamL1[5]) {
+		//error handling for MLX sensors
+		if (HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamL1, 5) != i2cStreamL1[5]) {
 
-        }
-        if(HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamL2, 5) != i2cStreamL2[5]) {
-            
-        }
-        if(HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamR1, 5) != i2cStreamR1[5]) {
-            
-        }
-        if(HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamR2, 5) != i2cStreamR2[5]) {
-            
-        }
+		}
+		if (HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamL2, 5) != i2cStreamL2[5]) {
+
+		}
+		if (HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamR1, 5) != i2cStreamR1[5]) {
+
+		}
+		if (HAL_CRC_Calculate(p_hcrc_i2c, i2cStreamR2, 5) != i2cStreamR2[5]) {
+
+		}
 #endif
-        //push data on queue or mutex global
+		//push data on queue or mutex global
 
-        //wait for at least 250ms
-        osDelay(250);
-    }
+		//wait for at least 250ms
+		osDelay(250);
+	}
 }
 
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    if(hi2c == p_hi2c_tireTempL) {
-        osThreadFlagsSet(i2cReaderHandle, i2cLTxCpltFlag);
-    }
-    else if (hi2c == p_hi2c_tireTempR) {
-        osThreadFlagsSet(i2cReaderHandle, i2cRTxCpltFlag);
-    }
+	if (hi2c == p_hi2c_tireTempL) {
+		osThreadFlagsSet(i2cReaderHandle, i2cLTxCpltFlag);
+	} else if (hi2c == p_hi2c_tireTempR) {
+		osThreadFlagsSet(i2cReaderHandle, i2cRTxCpltFlag);
+	}
 }
 
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    if(hi2c == p_hi2c_tireTempR) {
-        osThreadFlagsSet(i2cReaderHandle, i2cRRxCpltFlag);
-    }
-    else if (hi2c == p_hi2c_tireTempL) {
-        osThreadFlagsSet(i2cReaderHandle, i2cLRxCpltFlag);
-    }
+	if (hi2c == p_hi2c_tireTempR) {
+		osThreadFlagsSet(i2cReaderHandle, i2cRRxCpltFlag);
+	} else if (hi2c == p_hi2c_tireTempL) {
+		osThreadFlagsSet(i2cReaderHandle, i2cLRxCpltFlag);
+	}
 }
 
 void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
-    //TODO: error handling
+	//TODO: error handling
 }
 
 #ifdef USE_D6T
@@ -192,34 +206,31 @@ static void init_D6T(I2C_HandleTypeDef* const hi2c, volatile uint8_t* rawData, u
     }
 }
 #else
-static void init_MLX(I2C_HandleTypeDef* const hi2c, volatile uint8_t* stream, uint32_t txThreadFlag) {
-    const uint8_t addrR1 = 0x2A;
-    const uint8_t addrR2 = 0x3A;
-    const uint8_t addrL1 = 0x4A;
-    const uint8_t addrL2 = 0x5A;
-    const uint8_t memAddr = 0x07;
+static void init_MLX(I2C_HandleTypeDef *const hi2c, volatile uint8_t *stream,
+		uint32_t txThreadFlag) {
+	const uint8_t addrR1 = 0x2A;
+	const uint8_t addrR2 = 0x3A;
+	const uint8_t addrL1 = 0x4A;
+	const uint8_t addrL2 = 0x5A;
+	const uint8_t memAddr = 0x07;
 
-    if(stream == &i2cStreamL1) {
-        stream[0] = addrL1<<1;
-    }
-    else if (stream == &i2cStreamL2) {
-        stream[0] = addrL2<<1;
-    }
-    else if (stream == &i2cStreamR1) {
-        stream[0] = addrR1<<1;
-    }
-    else if (stream == &i2cStreamR2) {
-        stream[0] = addrR2<<1;
-    }
+	if (stream == &i2cStreamL1) {
+		stream[0] = addrL1 << 1;
+	} else if (stream == &i2cStreamL2) {
+		stream[0] = addrL2 << 1;
+	} else if (stream == &i2cStreamR1) {
+		stream[0] = addrR1 << 1;
+	} else if (stream == &i2cStreamR2) {
+		stream[0] = addrR2 << 1;
+	}
 
-    stream[1] = memAddr;
-    stream[2] = stream[0]+1;
-    if(HAL_I2C_IsDeviceReady(hi2c, stream[0], 5, 0xF == HAL_OK)) {
-        return;
-    }
-    else {
-        //TODO: report error
-    }
+	stream[1] = memAddr;
+	stream[2] = stream[0] + 1;
+	if (HAL_I2C_IsDeviceReady(hi2c, stream[0], 5, 0xF == HAL_OK)) {
+		return;
+	} else {
+		//TODO: report error
+	}
 
 }
 #endif
