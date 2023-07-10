@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "cmsis_os.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -41,7 +41,14 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+extern ADC_HandleTypeDef hadc1;
+extern ADC_HandleTypeDef hadc2;
+extern TIM_HandleTypeDef htim6;
+extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c3;
+extern FDCAN_HandleTypeDef hfdcan1;
 
+extern osThreadId_t sensorTimerHandle;
 /*flags for sensor event group*/
 static const uint32_t sensorStartEvent = 1U;
 static const uint32_t adcTaskCplt = 1U << 1;
@@ -65,16 +72,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define HALL_FREQ 100
-#define R_SUS_Pin GPIO_PIN_0
-#define R_SUS_GPIO_Port GPIOA
+#define WHEEL_SPEED_TIMER_PERIOD 10
+#define WHEEL_SPEED_TIMER_COUNT_PERIOD 0.001
+#define R_HALL_Pin GPIO_PIN_0
+#define R_HALL_GPIO_Port GPIOA
 #define USART2_TX_Pin GPIO_PIN_2
 #define USART2_TX_GPIO_Port GPIOA
 #define USART2_RX_Pin GPIO_PIN_3
 #define USART2_RX_GPIO_Port GPIOA
-#define R_HALL_Pin GPIO_PIN_4
-#define R_HALL_GPIO_Port GPIOA
-#define R_HALL_EXTI_IRQn EXTI4_IRQn
+#define R_SUS_Pin GPIO_PIN_4
+#define R_SUS_GPIO_Port GPIOA
 #define L_SUS_Pin GPIO_PIN_0
 #define L_SUS_GPIO_Port GPIOB
 #define RTT_SCL_Pin GPIO_PIN_8

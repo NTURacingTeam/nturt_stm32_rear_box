@@ -26,11 +26,13 @@
 #ifdef configGENERATE_RUN_TIME_STATS
 #include "RuntimeStatHook.h"
 #endif
-
+#include "sensors.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 typedef StaticTask_t osStaticThreadDef_t;
+typedef StaticTimer_t osStaticTimerDef_t;
+typedef StaticSemaphore_t osStaticMutexDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -76,83 +78,46 @@ const osThreadAttr_t canProvider_attributes = {
   .cb_size = sizeof(canProviderControlBlock),
   .priority = (osPriority_t) osPriorityHigh,
 };
-/* Definitions for hallConverter */
-osThreadId_t hallConverterHandle;
-const osThreadAttr_t hallConverter_attributes = {
-  .name = "hallConverter",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+/* Definitions for sensor */
+osThreadId_t sensorHandle;
+uint32_t sensorBuffer[ 256 ];
+osStaticThreadDef_t sensorControlBlock;
+const osThreadAttr_t sensor_attributes = {
+  .name = "sensor",
+  .stack_mem = &sensorBuffer[0],
+  .stack_size = sizeof(sensorBuffer),
+  .cb_mem = &sensorControlBlock,
+  .cb_size = sizeof(sensorControlBlock),
+  .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for adcReader */
-osThreadId_t adcReaderHandle;
-const osThreadAttr_t adcReader_attributes = {
-  .name = "adcReader",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
-};
-/* Definitions for i2cReader */
-osThreadId_t i2cReaderHandle;
-uint32_t i2cReaderBuffer[ 128 ];
-osStaticThreadDef_t i2cReaderControlBlock;
-const osThreadAttr_t i2cReader_attributes = {
-  .name = "i2cReader",
-  .stack_mem = &i2cReaderBuffer[0],
-  .stack_size = sizeof(i2cReaderBuffer),
-  .cb_mem = &i2cReaderControlBlock,
-  .cb_size = sizeof(i2cReaderControlBlock),
-  .priority = (osPriority_t) osPriorityLow,
-};
-/* Definitions for hallCountStorer */
-osThreadId_t hallCountStorerHandle;
-const osThreadAttr_t hallCountStorer_attributes = {
-  .name = "hallCountStorer",
-  .priority = (osPriority_t) osPriorityRealtime,
-  .stack_size = 128 * 4
-};
-/* Definitions for adcL */
-osMessageQueueId_t adcLHandle;
-const osMessageQueueAttr_t adcL_attributes = {
-  .name = "adcL"
-};
-/* Definitions for adcR */
-osMessageQueueId_t adcRHandle;
-const osMessageQueueAttr_t adcR_attributes = {
-  .name = "adcR"
-};
-/* Definitions for tempL */
-osMessageQueueId_t tempLHandle;
-const osMessageQueueAttr_t tempL_attributes = {
-  .name = "tempL"
-};
-/* Definitions for tempR */
-osMessageQueueId_t tempRHandle;
-const osMessageQueueAttr_t tempR_attributes = {
-  .name = "tempR"
-};
-/* Definitions for hallL */
-osMessageQueueId_t hallLHandle;
-const osMessageQueueAttr_t hallL_attributes = {
-  .name = "hallL"
-};
-/* Definitions for hallR */
-osMessageQueueId_t hallRHandle;
-const osMessageQueueAttr_t hallR_attributes = {
-  .name = "hallR"
+/* Definitions for sensorTimer */
+osTimerId_t sensorTimerHandle;
+osStaticTimerDef_t sensorTimerControlBlock;
+const osTimerAttr_t sensorTimer_attributes = {
+  .name = "sensorTimer",
+  .cb_mem = &sensorTimerControlBlock,
+  .cb_size = sizeof(sensorTimerControlBlock),
 };
 /* Definitions for hallStoreMutex */
 osMutexId_t hallStoreMutexHandle;
 const osMutexAttr_t hallStoreMutex_attributes = {
   .name = "hallStoreMutex"
 };
-/* Definitions for hallCounterBinSem */
-osSemaphoreId_t hallCounterBinSemHandle;
-const osSemaphoreAttr_t hallCounterBinSem_attributes = {
-  .name = "hallCounterBinSem"
+/* Definitions for suspensionMutex */
+osMutexId_t suspensionMutexHandle;
+osStaticMutexDef_t suspensionMutexControlBlock;
+const osMutexAttr_t suspensionMutex_attributes = {
+  .name = "suspensionMutex",
+  .cb_mem = &suspensionMutexControlBlock,
+  .cb_size = sizeof(suspensionMutexControlBlock),
 };
-/* Definitions for sensorEventGroup */
-osEventFlagsId_t sensorEventGroupHandle;
-const osEventFlagsAttr_t sensorEventGroup_attributes = {
-  .name = "sensorEventGroup"
+/* Definitions for tireTempMutex */
+osMutexId_t tireTempMutexHandle;
+osStaticMutexDef_t tireTempMutexControlBlock;
+const osMutexAttr_t tireTempMutex_attributes = {
+  .name = "tireTempMutex",
+  .cb_mem = &tireTempMutexControlBlock,
+  .cb_size = sizeof(tireTempMutexControlBlock),
 };
 /* USER CODE BEGIN PV */
 
@@ -184,10 +149,8 @@ static void MX_CRC_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_I2C1_Init(void);
 void StartCanProvider(void *argument);
-void StartHallConverter(void *argument);
-void StartAdcReader(void *argument);
-void StartI2cReader(void *argument);
-void StarthallCountStorer(void *argument);
+void StartSensorTask(void *argument);
+void sensor_timer_callback(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -246,40 +209,30 @@ int main(void)
   /* creation of hallStoreMutex */
   hallStoreMutexHandle = osMutexNew(&hallStoreMutex_attributes);
 
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
+  /* creation of suspensionMutex */
+  suspensionMutexHandle = osMutexNew(&suspensionMutex_attributes);
 
-  /* Create the semaphores(s) */
-  /* creation of hallCounterBinSem */
-  hallCounterBinSemHandle = osSemaphoreNew(1, 1, &hallCounterBinSem_attributes);
+  /* creation of tireTempMutex */
+  tireTempMutexHandle = osMutexNew(&tireTempMutex_attributes);
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* bind mutexes, ... */
+  wheel_speed_sensor.mutex = hallStoreMutexHandle;
+  travel_sensor.mutex = suspensionMutexHandle;
+  tire_temp_sensor.mutex = tireTempMutexHandle;
+  /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
+  /* Create the timer(s) */
+  /* creation of sensorTimer */
+  sensorTimerHandle = osTimerNew(sensor_timer_callback, osTimerPeriodic, NULL, &sensorTimer_attributes);
+
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
-
-  /* Create the queue(s) */
-  /* creation of adcL */
-  adcLHandle = osMessageQueueNew (5, sizeof(uint32_t), &adcL_attributes);
-
-  /* creation of adcR */
-  adcRHandle = osMessageQueueNew (5, sizeof(uint32_t), &adcR_attributes);
-
-  /* creation of tempL */
-  tempLHandle = osMessageQueueNew (5, sizeof(uint16_t), &tempL_attributes);
-
-  /* creation of tempR */
-  tempRHandle = osMessageQueueNew (5, sizeof(uint16_t), &tempR_attributes);
-
-  /* creation of hallL */
-  hallLHandle = osMessageQueueNew (5, sizeof(uint16_t), &hallL_attributes);
-
-  /* creation of hallR */
-  hallRHandle = osMessageQueueNew (5, sizeof(uint16_t), &hallR_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -289,24 +242,12 @@ int main(void)
   /* creation of canProvider */
   canProviderHandle = osThreadNew(StartCanProvider, NULL, &canProvider_attributes);
 
-  /* creation of hallConverter */
-  hallConverterHandle = osThreadNew(StartHallConverter, NULL, &hallConverter_attributes);
-
-  /* creation of adcReader */
-  adcReaderHandle = osThreadNew(StartAdcReader, NULL, &adcReader_attributes);
-
-  /* creation of i2cReader */
-  i2cReaderHandle = osThreadNew(StartI2cReader, NULL, &i2cReader_attributes);
-
-  /* creation of hallCountStorer */
-  hallCountStorerHandle = osThreadNew(StarthallCountStorer, NULL, &hallCountStorer_attributes);
+  /* creation of sensor */
+  sensorHandle = osThreadNew(StartSensorTask, NULL, &sensor_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
-
-  /* creation of sensorEventGroup */
-  sensorEventGroupHandle = osEventFlagsNew(&sensorEventGroup_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -408,7 +349,11 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.OversamplingMode = DISABLE;
+  hadc1.Init.OversamplingMode = ENABLE;
+  hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  hadc1.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
+  hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+  hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -475,7 +420,11 @@ static void MX_ADC2_Init(void)
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc2.Init.DMAContinuousRequests = DISABLE;
   hadc2.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc2.Init.OversamplingMode = DISABLE;
+  hadc2.Init.OversamplingMode = ENABLE;
+  hadc2.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  hadc2.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
+  hadc2.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+  hadc2.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
   if (HAL_ADC_Init(&hadc2) != HAL_OK)
   {
     Error_Handler();
@@ -483,7 +432,7 @@ static void MX_ADC2_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Channel = ADC_CHANNEL_17;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_47CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -592,7 +541,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x30B0AAF7;
+  hi2c1.Init.Timing = 0xA040474F;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -640,7 +589,7 @@ static void MX_I2C3_Init(void)
 
   /* USER CODE END I2C3_Init 1 */
   hi2c3.Instance = I2C3;
-  hi2c3.Init.Timing = 0x30B0AAF7;
+  hi2c3.Init.Timing = 0xA040474F;
   hi2c3.Init.OwnAddress1 = 0;
   hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -836,7 +785,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : R_HALL_Pin */
   GPIO_InitStruct.Pin = R_HALL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(R_HALL_GPIO_Port, &GPIO_InitStruct);
 
@@ -854,9 +803,6 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(L_HALL_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
-
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
@@ -886,76 +832,30 @@ __weak void StartCanProvider(void *argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartHallConverter */
+/* USER CODE BEGIN Header_StartSensorTask */
 /**
-* @brief Function implementing the hallConverter thread.
+* @brief Function implementing the sensor thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartHallConverter */
-__weak void StartHallConverter(void *argument)
+/* USER CODE END Header_StartSensorTask */
+__weak void StartSensorTask(void *argument)
 {
-  /* USER CODE BEGIN StartHallConverter */
+  /* USER CODE BEGIN StartSensorTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartHallConverter */
+  /* USER CODE END StartSensorTask */
 }
 
-/* USER CODE BEGIN Header_StartAdcReader */
-/**
-* @brief Function implementing the adcReader thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartAdcReader */
-__weak void StartAdcReader(void *argument)
+/* sensor_timer_callback function */
+__weak void sensor_timer_callback(void *argument)
 {
-  /* USER CODE BEGIN StartAdcReader */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartAdcReader */
-}
+  /* USER CODE BEGIN sensor_timer_callback */
 
-/* USER CODE BEGIN Header_StartI2cReader */
-/**
-* @brief Function implementing the i2cReader thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartI2cReader */
-__weak void StartI2cReader(void *argument)
-{
-  /* USER CODE BEGIN StartI2cReader */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartI2cReader */
-}
-
-/* USER CODE BEGIN Header_StarthallCountStorer */
-/**
-* @brief Function implementing the hallCountStorer thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StarthallCountStorer */
-__weak void StarthallCountStorer(void *argument)
-{
-  /* USER CODE BEGIN StarthallCountStorer */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StarthallCountStorer */
+  /* USER CODE END sensor_timer_callback */
 }
 
 /**
@@ -982,9 +882,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
 
 #endif
-  else if(htim == p_htim_hallSensorBase) {
-    //enables the timer ISR proxy task
-    osThreadFlagsSet(hallCountStorerHandle, timerLapEvent);
+  if(htim->Instance == TIM6) {
+    __hall_timer_elapsed(htim);
   }
   /* USER CODE END Callback 1 */
 }

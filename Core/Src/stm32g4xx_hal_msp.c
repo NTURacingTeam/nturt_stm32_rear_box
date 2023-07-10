@@ -161,7 +161,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**ADC2 GPIO Configuration
-    PA0     ------> ADC2_IN1
+    PA4     ------> ADC2_IN17
     */
     GPIO_InitStruct.Pin = R_SUS_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -227,7 +227,7 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     }
 
     /**ADC2 GPIO Configuration
-    PA0     ------> ADC2_IN1
+    PA4     ------> ADC2_IN17
     */
     HAL_GPIO_DeInit(R_SUS_GPIO_Port, R_SUS_Pin);
 

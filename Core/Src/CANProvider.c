@@ -1,7 +1,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include <stdio.h>
-
+#include "sensors.h"
 
 // #define PRINTF_TEST
 #ifdef PRINTF_TEST
@@ -10,14 +10,7 @@
 extern UART_HandleTypeDef* p_huart_testCOM;
 #endif
 
-extern FDCAN_HandleTypeDef* p_hcan;
-
-extern osMessageQueueId_t adcLHandle;
-extern osMessageQueueId_t adcRHandle;
-extern osMessageQueueId_t hallLHandle;
-extern osMessageQueueId_t hallRHandle;
-
-extern osEventFlagsId_t sensorEventGroupHandle;
+#define MUTEX_TIMEOUT 0x02
 
 static const FDCAN_TxHeaderTypeDef CanHeader1 = {
   .Identifier = 0x080AD094,
@@ -43,18 +36,10 @@ static const FDCAN_TxHeaderTypeDef CanHeader2 = {
   .MessageMarker = 0x01
 };
 
-static const uint32_t queueTimeout = 5U;
-
 void StartCanProvider(void *argument) {
   /*data variable*/
   uint8_t payload1[8] = {0};
   uint8_t payload2[8] = {0};
-
-  /*sensor reading variable*/
-  uint32_t adcLreading = 0;
-  uint32_t adcRreading = 0;
-  uint16_t hallLreading = 0;
-  uint16_t hallRreading = 0;
 
 #ifdef PRINTF_TEST
   char buf[BUFSIZE] = {0};
@@ -70,30 +55,18 @@ void StartCanProvider(void *argument) {
       .FilterConfig = FDCAN_FILTER_TO_RXFIFO0,
       .FilterIndex = 0U
     };
-    HAL_FDCAN_ConfigFilter(p_hcan, &filterConfig);
+    HAL_FDCAN_ConfigFilter(&hfdcan1, &filterConfig);
   }
   
   /*enable reception interrupt*/
-  HAL_FDCAN_ActivateNotification(p_hcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, NULL);
+  HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
 
   /*enable CAN*/
-  HAL_FDCAN_Start(p_hcan);
+  HAL_FDCAN_Start(&hfdcan1);
 
   for(;;)
   {
-    /*start the sensor*/
-    osEventFlagsSet(sensorEventGroupHandle, sensorStartEvent);
 
-    /*wait for completion*/
-    if(osEventFlagsWait(sensorEventGroupHandle, adcTaskCplt | hallTaskCplt, osFlagsWaitAll, 5U) == osFlagsErrorTimeout) {
-      ;
-    }
-
-    /*get finished values*/
-    osMessageQueueGet(adcLHandle, &adcLreading, NULL, queueTimeout);
-    osMessageQueueGet(adcRHandle, &adcRreading, NULL, queueTimeout);
-    osMessageQueueGet(hallLHandle, &hallLreading, NULL, queueTimeout);
-    osMessageQueueGet(hallRHandle, &hallRreading, NULL, queueTimeout);
 
 #ifdef PRINTF_TEST
     /*test print*/
@@ -109,16 +82,28 @@ void StartCanProvider(void *argument) {
 	  HAL_UART_Transmit(p_huart_testCOM, buf, length + 1, HAL_MAX_DELAY);
 	}
 #endif
-    /*output to CAN*/
-    HAL_FDCAN_AddMessageToTxFifoQ(p_hcan, &CanHeader1, payload1);    
+    
 
-    osDelay(100);
+    /*output to CAN*/
+    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CanHeader1, payload1);
+    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CanHeader2, payload2);
+
+    osDelay(10);
   }
 }
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-  /*determine the origin of the message*/
   /*read data from RxMessage*/
-  /*Toggle BrakeLight based on input*/
-  HAL_GPIO_TogglePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin); //example
+  if(RxFifo0ITs == FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
+    uint8_t payload[8];
+    FDCAN_RxHeaderTypeDef RxHeader;
+    HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, payload);
+    /*Toggle BrakeLight based on input*/
+    if(payload[5] & 0b1) {
+      HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_SET);
+    }
+    else {
+      HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_RESET);
+    }
+  }
 }
