@@ -48,7 +48,8 @@ extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c3;
 extern FDCAN_HandleTypeDef hfdcan1;
 
-extern osThreadId_t sensorTimerHandle;
+extern osThreadId_t sensorHandle;
+extern osTimerId_t sensorTimerHandle;
 /*flags for sensor event group*/
 static const uint32_t sensorStartEvent = 1U;
 static const uint32_t adcTaskCplt = 1U << 1;

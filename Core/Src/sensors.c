@@ -125,11 +125,11 @@ static uint8_t init_D6T(I2C_HandleTypeDef* const hi2c, volatile i2c_d6t_dma_buff
 void sensor_timer_callback(void *argument) {
     static uint32_t expire_count = 0;
 
-    xTaskNotify(sensorTimerHandle, FLAG_READ_SUS_PEDAL, eSetBits);
+    xTaskNotify(sensorHandle, FLAG_READ_SUS_PEDAL, eSetBits);
     expire_count++;
 
     if(expire_count >= TIRE_TEMP_PERIOD/SENSOR_TIMER_PERIOD) {
-        xTaskNotify(sensorTimerHandle, FLAG_READ_TIRE_TEMP, eSetBits);
+        xTaskNotify(sensorHandle, FLAG_READ_TIRE_TEMP, eSetBits);
         expire_count = 0;
     }
 }
@@ -362,23 +362,23 @@ void update_time_stamp(timer_time_t* last, volatile const timer_time_t* now, tim
 }
 
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    xTaskNotifyFromISR(sensorTimerHandle, FLAG_D6T_STARTUP, eSetBits, NULL);
+    xTaskNotifyFromISR(sensorHandle, FLAG_D6T_STARTUP, eSetBits, NULL);
 }
 
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
     if(hi2c == &hi2c1) {
-        xTaskNotifyFromISR(sensorTimerHandle, FLAG_I2C1_FINISH, eSetBits, NULL);
+        xTaskNotifyFromISR(sensorHandle, FLAG_I2C1_FINISH, eSetBits, NULL);
     }
     else if (hi2c == &hi2c3) {
-        xTaskNotifyFromISR(sensorTimerHandle, FLAG_I2C3_FINISH, eSetBits, NULL);
+        xTaskNotifyFromISR(sensorHandle, FLAG_I2C3_FINISH, eSetBits, NULL);
     }
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if(hadc == &hadc1) {
-        xTaskNotifyFromISR(sensorTimerHandle, FLAG_ADC1_FINISH, eSetBits, NULL);
+        xTaskNotifyFromISR(sensorHandle, FLAG_ADC1_FINISH, eSetBits, NULL);
     } else if(hadc == &hadc2) {
-        xTaskNotifyFromISR(sensorTimerHandle, FLAG_ADC2_FINISH, eSetBits, NULL);
+        xTaskNotifyFromISR(sensorHandle, FLAG_ADC2_FINISH, eSetBits, NULL);
     }
 }
 
@@ -393,7 +393,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         if(xSemaphoreTakeFromISR(hall_time_L.mutex, NULL) == pdTRUE) {
             hall_time_L.timer_count = __HAL_TIM_GET_COUNTER(&htim6);
             hall_time_L.elapsed_count = hall_timer_elapsed;
-            xTaskNotifyFromISR(sensorTimerHandle, FLAG_HALL_EDGE_LEFT, eSetBits, NULL);
+            xTaskNotifyFromISR(sensorHandle, FLAG_HALL_EDGE_LEFT, eSetBits, NULL);
             xSemaphoreGiveFromISR(hall_time_L.mutex, NULL);
         }
     }   
@@ -401,7 +401,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         if(xSemaphoreTakeFromISR(hall_time_R.mutex, NULL) == pdTRUE) {
             hall_time_R.timer_count = __HAL_TIM_GET_COUNTER(&htim6);
             hall_time_R.elapsed_count = hall_timer_elapsed;
-            xTaskNotifyFromISR(sensorTimerHandle, FLAG_HALL_EDGE_RIGHT, eSetBits, NULL);
+            xTaskNotifyFromISR(sensorHandle, FLAG_HALL_EDGE_RIGHT, eSetBits, NULL);
             xSemaphoreGiveFromISR(hall_time_R.mutex, NULL);
         }
     }

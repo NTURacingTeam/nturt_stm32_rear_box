@@ -85,8 +85,8 @@ void StartCanProvider(void *argument) {
     
 
     /*output to CAN*/
-    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CanHeader1, payload1);
-    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CanHeader2, payload2);
+//    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CanHeader1, payload1);
+//    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CanHeader2, payload2);
 
     osDelay(10);
   }
@@ -98,12 +98,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     uint8_t payload[8];
     FDCAN_RxHeaderTypeDef RxHeader;
     HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, payload);
-    /*Toggle BrakeLight based on input*/
-    if(payload[5] & 0b1) {
-      HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_SET);
-    }
-    else {
-      HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_RESET);
+    if(RxHeader.Identifier == 0x080AD091) {
+    	/*Toggle BrakeLight based on input*/
+    	if(payload[5] & 0b1) {
+    		HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_SET);
+		}
+		else {
+			HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_RESET);
+		}
     }
   }
 }
