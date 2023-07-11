@@ -46,6 +46,7 @@
 #include "sensors.h"
 
 #define USE_HALL_SENSOR
+#define USE_D6T
 
 #define MUTEX_TIMEOUT 0x02
 #define ADC_TIMEOUT 0x02
@@ -156,7 +157,7 @@ void StartSensorTask(void* argument) {
 #ifdef USE_D6T
     vTaskDelay(pdMS_TO_TICKS(20));
 
-   if(init_D6T(&hi2c5, &d6t_dma_buffer_R, FLAG_D6T_STARTUP, &pending_notifications)) {
+   if(init_D6T(&hi2c3, &d6t_dma_buffer_R, FLAG_D6T_STARTUP, &pending_notifications)) {
        Error_Handler();
    }
    if(init_D6T(&hi2c1, &d6t_dma_buffer_L, FLAG_D6T_STARTUP, &pending_notifications)) {
@@ -229,7 +230,7 @@ void StartSensorTask(void* argument) {
 #ifdef USE_D6T
             //read the values from both sensors
             HAL_I2C_Mem_Read_DMA(
-                &hi2c5,
+                &hi2c3,
                 d6t_dma_buffer_R.addr_write, 
                 d6t_dma_buffer_R.command, 
                 1, 
@@ -242,7 +243,7 @@ void StartSensorTask(void* argument) {
                 1, 
                 &(d6t_dma_buffer_L.PTAT.low), 
                 sizeof(d6t_dma_buffer_L.PTAT)+sizeof(d6t_dma_buffer_L.temp)+sizeof(d6t_dma_buffer_L.PEC));
-            wait for the DMA to finish, while we can do other stuff in the mean time
+            // wait for the DMA to finish, while we can do other stuff in the mean time
             //TODO: setup timeout exception and deal with error case where the stuff did not finish
 #endif
         }
@@ -320,7 +321,7 @@ static uint8_t init_D6T(I2C_HandleTypeDef* const hi2c, volatile i2c_d6t_dma_buff
         {0x05, 0x90, 0x3A, 0xB8},
         {0x03, 0x00, 0x03, 0x8B},
         {0x03, 0x00, 0x07, 0x97},
-        {0x92, 0x00, 0x00, 0xE9}
+        {0x02, 0x00, 0x00, 0xE9}
     };
 
     //fill the first 3 bytes of rawData with these data since they will be used in CRC

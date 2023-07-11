@@ -45,7 +45,7 @@ void StartCanProvider(void *argument) {
   char buf[BUFSIZE] = {0};
 #endif
 
-  /*set up the reception filter*/
+  /*set up the CAN*/
   {
     //decides how does can react to unmatched frames
     HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT, FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE);
