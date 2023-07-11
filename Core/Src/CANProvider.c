@@ -47,19 +47,26 @@ void StartCanProvider(void *argument) {
 
   /*set up the reception filter*/
   {
+    //decides how does can react to unmatched frames
+    HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT, FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE);
+
+    //decides how does CAN react to full FIFO
+    HAL_FDCAN_ConfigRxFifoOverwrite(&hfdcan1, FDCAN_RX_FIFO0, FDCAN_RX_FIFO_OVERWRITE);
+
+    //configs the single filter we need for brake light
     FDCAN_FilterTypeDef filterConfig = {
       .IdType = FDCAN_EXTENDED_ID,
       .FilterType = FDCAN_FILTER_MASK,
-      .FilterID1 = 0x080AD092,
+      .FilterID1 = 0x080AD091,
       .FilterID2 = 0x1FFFFFFF,
       .FilterConfig = FDCAN_FILTER_TO_RXFIFO0,
       .FilterIndex = 0U
     };
     HAL_FDCAN_ConfigFilter(&hfdcan1, &filterConfig);
-  }
   
-  /*enable reception interrupt*/
-  HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
+    /*enable reception interrupt*/
+    HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
+  }
 
   /*enable CAN*/
   HAL_FDCAN_Start(&hfdcan1);
@@ -98,14 +105,12 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     uint8_t payload[8];
     FDCAN_RxHeaderTypeDef RxHeader;
     HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, payload);
-    if(RxHeader.Identifier == 0x080AD091) {
-    	/*Toggle BrakeLight based on input*/
-    	if(payload[5] & 0b1) {
-    		HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_SET);
+    /*Toggle BrakeLight based on input*/
+    if(payload[5] & 0b1) {
+      HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_SET);
 		}
 		else {
 			HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_RESET);
 		}
-    }
   }
 }
