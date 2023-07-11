@@ -149,7 +149,7 @@ void StartSensorTask(void* argument) {
 
     //start the hall timer
 #ifdef USE_HALL_SENSOR
-    HAL_TIM_Base_Start(&htim6);
+    HAL_TIM_Base_Start_IT(&htim6);
 #endif
 
     osTimerStart(sensorTimerHandle, pdMS_TO_TICKS(5));
@@ -323,4 +323,9 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
     else if (hi2c->Instance == I2C3) {
         xTaskNotifyFromISR(sensorHandle, FLAG_I2C3_FINISH, eSetBits, NULL);
     }
+}
+
+void bindHallMutex(SemaphoreHandle_t left, SemaphoreHandle_t right) {
+    hall_time_L.mutex = left;
+    hall_time_R.mutex = right;
 }

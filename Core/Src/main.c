@@ -119,6 +119,22 @@ const osMutexAttr_t tireTempMutex_attributes = {
   .cb_mem = &tireTempMutexControlBlock,
   .cb_size = sizeof(tireTempMutexControlBlock),
 };
+/* Definitions for hallLeftTimeMutex */
+osMutexId_t hallLeftTimeMutexHandle;
+osStaticMutexDef_t hallLeftTimeMutexControlBlock;
+const osMutexAttr_t hallLeftTimeMutex_attributes = {
+  .name = "hallLeftTimeMutex",
+  .cb_mem = &hallLeftTimeMutexControlBlock,
+  .cb_size = sizeof(hallLeftTimeMutexControlBlock),
+};
+/* Definitions for hallRightTimeMutex */
+osMutexId_t hallRightTimeMutexHandle;
+osStaticMutexDef_t hallRightTimeMutexControlBlock;
+const osMutexAttr_t hallRightTimeMutex_attributes = {
+  .name = "hallRightTimeMutex",
+  .cb_mem = &hallRightTimeMutexControlBlock,
+  .cb_size = sizeof(hallRightTimeMutexControlBlock),
+};
 /* USER CODE BEGIN PV */
 
 //exporting peripheral handle as global variable
@@ -215,11 +231,18 @@ int main(void)
   /* creation of tireTempMutex */
   tireTempMutexHandle = osMutexNew(&tireTempMutex_attributes);
 
+  /* creation of hallLeftTimeMutex */
+  hallLeftTimeMutexHandle = osMutexNew(&hallLeftTimeMutex_attributes);
+
+  /* creation of hallRightTimeMutex */
+  hallRightTimeMutexHandle = osMutexNew(&hallRightTimeMutex_attributes);
+
   /* USER CODE BEGIN RTOS_MUTEX */
   /* bind mutexes, ... */
   wheel_speed_sensor.mutex = hallStoreMutexHandle;
   travel_sensor.mutex = suspensionMutexHandle;
   tire_temp_sensor.mutex = tireTempMutexHandle;
+  bindHallMutex(hallLeftTimeMutexHandle, hallRightTimeMutexHandle);
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -803,6 +826,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(L_HALL_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
@@ -897,7 +923,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  // HAL_NVIC_SystemReset();
+   HAL_NVIC_SystemReset();
   while (1)
   {
   }

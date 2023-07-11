@@ -62,5 +62,6 @@ void sensor_timer_callback(void *argument);
 void sensor_init(void);
 
 BaseType_t wait_for_notif_flags(uint32_t target, uint32_t timeout, uint32_t* const gotten);
+void bindHallMutex(SemaphoreHandle_t left, SemaphoreHandle_t right);
 
 #endif //_SENSORS_H

@@ -50,6 +50,10 @@ extern FDCAN_HandleTypeDef hfdcan1;
 
 extern osThreadId_t sensorHandle;
 extern osTimerId_t sensorTimerHandle;
+
+extern osMutexId_t hallLeftTimeMutexHandle;
+extern osMutexId_t hallRightTimeMutexHandle;
+
 /*flags for sensor event group*/
 static const uint32_t sensorStartEvent = 1U;
 static const uint32_t adcTaskCplt = 1U << 1;
@@ -77,6 +81,7 @@ void Error_Handler(void);
 #define WHEEL_SPEED_TIMER_COUNT_PERIOD 0.001
 #define R_HALL_Pin GPIO_PIN_0
 #define R_HALL_GPIO_Port GPIOA
+#define R_HALL_EXTI_IRQn EXTI0_IRQn
 #define USART2_TX_Pin GPIO_PIN_2
 #define USART2_TX_GPIO_Port GPIOA
 #define USART2_RX_Pin GPIO_PIN_3
