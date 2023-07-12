@@ -1,5 +1,6 @@
-Drivers/
-Middlewares/
-Debug/
-.vscode/
-*.ld
+.settings
+Debug
+Drivers
+Middlewares
+Release
+*.launch
