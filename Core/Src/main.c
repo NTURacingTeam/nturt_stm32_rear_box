@@ -22,10 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
-#ifdef configGENERATE_RUN_TIME_STATS
-#include "RuntimeStatHook.h"
-#endif
+#include "user_main.h"
 #include "sensors.h"
 /* USER CODE END Includes */
 
@@ -61,23 +58,14 @@ DMA_HandleTypeDef hdma_i2c1_tx;
 DMA_HandleTypeDef hdma_i2c3_tx;
 DMA_HandleTypeDef hdma_i2c3_rx;
 
+IWDG_HandleTypeDef hiwdg;
+
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim16;
 
 UART_HandleTypeDef huart2;
 
-/* Definitions for canProvider */
-osThreadId_t canProviderHandle;
-uint32_t canProviderBuffer[ 256 ];
-osStaticThreadDef_t canProviderControlBlock;
-const osThreadAttr_t canProvider_attributes = {
-  .name = "canProvider",
-  .stack_mem = &canProviderBuffer[0],
-  .stack_size = sizeof(canProviderBuffer),
-  .cb_mem = &canProviderControlBlock,
-  .cb_size = sizeof(canProviderControlBlock),
-  .priority = (osPriority_t) osPriorityHigh,
-};
 /* Definitions for sensor */
 osThreadId_t sensorHandle;
 uint32_t sensorBuffer[ 256 ];
@@ -89,6 +77,18 @@ const osThreadAttr_t sensor_attributes = {
   .cb_mem = &sensorControlBlock,
   .cb_size = sizeof(sensorControlBlock),
   .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for feed_dog_task */
+osThreadId_t feed_dog_taskHandle;
+uint32_t feed_dog_task_buffer[ 128 ];
+osStaticThreadDef_t feed_dog_task_control_block;
+const osThreadAttr_t feed_dog_task_attributes = {
+  .name = "feed_dog_task",
+  .stack_mem = &feed_dog_task_buffer[0],
+  .stack_size = sizeof(feed_dog_task_buffer),
+  .cb_mem = &feed_dog_task_control_block,
+  .cb_size = sizeof(feed_dog_task_control_block),
+  .priority = (osPriority_t) osPriorityRealtime7,
 };
 /* Definitions for sensorTimer */
 osTimerId_t sensorTimerHandle;
@@ -164,8 +164,10 @@ static void MX_TIM16_Init(void);
 static void MX_CRC_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_I2C1_Init(void);
-void StartCanProvider(void *argument);
+static void MX_TIM2_Init(void);
+static void MX_IWDG_Init(void);
 void StartSensorTask(void *argument);
+void start_feed_dog_task(void *argument);
 void sensor_timer_callback(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -215,8 +217,10 @@ int main(void)
   MX_CRC_Init();
   MX_I2C3_Init();
   MX_I2C1_Init();
+  MX_TIM2_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
-  
+  user_init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -262,11 +266,11 @@ int main(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of canProvider */
-  canProviderHandle = osThreadNew(StartCanProvider, NULL, &canProvider_attributes);
-
   /* creation of sensor */
   sensorHandle = osThreadNew(StartSensorTask, NULL, &sensor_attributes);
+
+  /* creation of feed_dog_task */
+  feed_dog_taskHandle = osThreadNew(start_feed_dog_task, NULL, &feed_dog_task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -306,15 +310,15 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV6;
   RCC_OscInitStruct.PLL.PLLN = 85;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV4;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -645,6 +649,80 @@ static void MX_I2C3_Init(void)
 }
 
 /**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+#ifdef PRODUCTION
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
+  hiwdg.Init.Window = 1600 - 1;
+  hiwdg.Init.Reload = 1600 - 1;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+#endif  // PRODUCTION
+  /* USER CODE END IWDG_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 1700 - 1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4.294967295E9;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief TIM6 Initialization Function
   * @param None
   * @retval None
@@ -800,6 +878,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
@@ -840,14 +919,14 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartCanProvider */
+/* USER CODE BEGIN Header_StartSensorTask */
 /**
-  * @brief  Function implementing the canProvider thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_StartCanProvider */
-__weak void StartCanProvider(void *argument)
+* @brief Function implementing the sensor thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartSensorTask */
+__weak void StartSensorTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
@@ -858,22 +937,23 @@ __weak void StartCanProvider(void *argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartSensorTask */
+/* USER CODE BEGIN Header_start_feed_dog_task */
 /**
-* @brief Function implementing the sensor thread.
+* @brief Function implementing the feed_dog_task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartSensorTask */
-__weak void StartSensorTask(void *argument)
+/* USER CODE END Header_start_feed_dog_task */
+__weak void start_feed_dog_task(void *argument)
 {
-  /* USER CODE BEGIN StartSensorTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
+  /* USER CODE BEGIN start_feed_dog_task */
+  while (1) {
+#ifdef PRODUCTION
+    HAL_IWDG_Refresh(&hiwdg);
+#endif  // PRODUCTION
+    osDelay(100);
   }
-  /* USER CODE END StartSensorTask */
+  /* USER CODE END start_feed_dog_task */
 }
 
 /* sensor_timer_callback function */
@@ -901,13 +981,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-#ifdef configGENERATE_RUN_TIME_STATS
-
-  else if (htim->Instance == TIM16) {
-	  IncRunTimeCounter();
-  }
-
-#endif
   if(htim->Instance == TIM6) {
     __hall_timer_elapsed(htim);
   }
@@ -922,10 +995,19 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-   HAL_NVIC_SystemReset();
-  while (1)
-  {
+    __disable_irq();
+  // if under debugging
+  if ((CoreDebug->DHCSR & 0x1) == 0x1) {
+    __asm volatile("BKPT #0");
+  } else {
+#ifdef PRODUCTION
+    NVIC_SystemReset();
+#else
+    HAL_GPIO_WritePin(BRAKE_LIGHT_GPIO_Port, BRAKE_LIGHT_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    while (1) {
+    }
+#endif  // PRODUCTION
   }
   /* USER CODE END Error_Handler_Debug */
 }

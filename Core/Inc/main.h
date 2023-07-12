@@ -43,10 +43,21 @@ extern "C" {
 /* USER CODE BEGIN EC */
 extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
-extern TIM_HandleTypeDef htim6;
+
+extern CRC_HandleTypeDef hcrc;
+
+extern FDCAN_HandleTypeDef hfdcan1;
+
 extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c3;
-extern FDCAN_HandleTypeDef hfdcan1;
+
+extern IWDG_HandleTypeDef hiwdg;
+
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim6;
+extern TIM_HandleTypeDef htim16;
+
+extern UART_HandleTypeDef huart2;
 
 extern osThreadId_t sensorHandle;
 extern osTimerId_t sensorTimerHandle;
@@ -94,8 +105,8 @@ void Error_Handler(void);
 #define RTT_SCL_GPIO_Port GPIOA
 #define CAN_RX_Pin GPIO_PIN_11
 #define CAN_RX_GPIO_Port GPIOA
-#define CAN_RXA12_Pin GPIO_PIN_12
-#define CAN_RXA12_GPIO_Port GPIOA
+#define CAN_TX_Pin GPIO_PIN_12
+#define CAN_TX_GPIO_Port GPIOA
 #define T_SWDIO_Pin GPIO_PIN_13
 #define T_SWDIO_GPIO_Port GPIOA
 #define T_SWCLK_Pin GPIO_PIN_14
