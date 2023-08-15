@@ -56,8 +56,7 @@ static inline float steer_angle_transfer_function(const uint16_t reading) {
  */
 static inline float wheel_speed_tranfser_function(const uint32_t elapsed, const uint32_t count) {
     const float tooth_per_rev = 14.0;
-    const float pi = 3.14159;
-    return (2*pi/tooth_per_rev) / (elapsed*WHEEL_SPEED_TIMER_PERIOD + count*WHEEL_SPEED_TIMER_COUNT_PERIOD) * 1000;
+    return (1.0/tooth_per_rev) / (elapsed*WHEEL_SPEED_TIMER_PERIOD + count*WHEEL_SPEED_TIMER_COUNT_PERIOD) * 1000 *60;
 }
 
 #endif //_TRANSFER_FUNCTION_H
