@@ -415,4 +415,3 @@ VP_TIM6_VS_ClockSourceINT.Signal=TIM6_VS_ClockSourceINT
 board=NUCLEO-G431KB
 boardIOC=true
 rtos.0.ip=FREERTOS
-isbadioc=false
