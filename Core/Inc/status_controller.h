@@ -24,7 +24,7 @@
 /* macro ---------------------------------------------------------------------*/
 // parameter
 #define STATUS_CONTROLLER_TASK_PRIORITY TaskPriorityHigh
-#define STATUS_CONTROLLER_TASK_STACK_SIZE 256
+#define STATUS_CONTROLLER_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
 #define STATUS_CONTROLLER_TASK_PERIOD 50
 
 // rtd condition

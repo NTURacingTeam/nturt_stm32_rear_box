@@ -6,7 +6,7 @@
 
 /* project config ------------------------------------------------------------*/
 // build config
-// #define PRODUCTION
+#define PRODUCTION
 
 #ifndef PRODUCTION
 /* testing -------------------------------------------------------------------*/

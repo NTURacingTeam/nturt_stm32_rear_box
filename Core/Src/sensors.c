@@ -1,3 +1,4 @@
+// clang-format off
 /**
  * @file sensors.c
  * @author MinLun Tsou (astatine1184@gmail.com)
@@ -47,7 +48,7 @@
 #include "sensors.h"
 
 #define USE_HALL_SENSOR
-#define USE_D6T
+// #define USE_D6T
 
 #define MUTEX_TIMEOUT 0x02
 #define ADC_TIMEOUT 0x02
