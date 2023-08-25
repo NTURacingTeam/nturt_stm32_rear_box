@@ -47,7 +47,7 @@
 #include "sensors.h"
 
 #define USE_HALL_SENSOR
-//#define USE_D6T
+#define USE_D6T
 
 #define MUTEX_TIMEOUT 0x02
 #define ADC_TIMEOUT 0x02
@@ -93,8 +93,7 @@ wheel_speed_data_t wheel_speed_sensor = {
 
 
 static void update_time_stamp(timer_time_t* last, volatile const timer_time_t* now, timer_time_t* diff);
-#ifdef USE_D6T
-#endif
+
 
 
 void sensor_timer_callback(void *argument) {
@@ -131,12 +130,8 @@ void StartSensorTask(void* argument) {
 #ifdef USE_D6T
     vTaskDelay(pdMS_TO_TICKS(20));
 
-   if(init_D6T(&hi2c3, &d6t_dma_buffer_R, FLAG_D6T_STARTUP, &pending_notifications, I2C_TIMEOUT)) {
-       Error_Handler();
-   }
-   if(init_D6T(&hi2c1, &d6t_dma_buffer_L, FLAG_D6T_STARTUP, &pending_notifications, I2C_TIMEOUT)) {
-       Error_Handler();
-   }
+    const bool d6t_right_err = init_D6T(&hi2c3, &d6t_dma_buffer_R, FLAG_D6T_STARTUP, &pending_notifications, I2C_TIMEOUT);
+    const bool d6t_left_err = init_D6T(&hi2c1, &d6t_dma_buffer_L, FLAG_D6T_STARTUP, &pending_notifications, I2C_TIMEOUT);
     
     //wait for 500ms after initialization of D6T
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -203,8 +198,8 @@ void StartSensorTask(void* argument) {
             pending_notifications &= ~FLAG_READ_TIRE_TEMP;
 #ifdef USE_D6T
             //read the values from both sensors
-            start_D6T_read_DMA(&hi2c3, &d6t_dma_buffer_R);
-            start_D6T_read_DMA(&hi2c1, &d6t_dma_buffer_L);
+            if(!d6t_right_err) start_D6T_read_DMA(&hi2c3, &d6t_dma_buffer_R);
+            if(!d6t_left_err) start_D6T_read_DMA(&hi2c1, &d6t_dma_buffer_L);
             // wait for the DMA to finish, while we can do other stuff in the mean time
             //TODO: setup timeout exception and deal with error case where the stuff did not finish
 #endif
