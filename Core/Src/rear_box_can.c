@@ -121,7 +121,7 @@ void __RearBoxCan_configure(CanTransceiver* const self) {
   /* config can filter -------------------------------------------------------*/
   FDCAN_FilterTypeDef can_filter0 = {
       .IdType = FDCAN_EXTENDED_ID,
-      .FilterIndex = 1,
+      .FilterIndex = 0,
       .FilterType = FDCAN_FILTER_DUAL,
       .FilterConfig = FDCAN_FILTER_TO_RXFIFO0,
       .FilterID1 = FRONT_SENSOR_1_CANID,
@@ -248,7 +248,6 @@ inline int __send_can_message__(uint32_t msgid, uint8_t ide, uint8_t* d,
 // coderdbc callback function called when receiving a new frame
 void _FMon_MONO_nturt_can_config(FrameMonitor_t* mon, uint32_t msgid) {
   if (mon->cycle_error) {
-    printf("timeout lift: %lx\n", msgid);
     int index = frame_id_to_index(msgid);
     if (index != FRAME_NOT_DEFINED) {
       if (index & FRAME_CRITICAL_MASK) {

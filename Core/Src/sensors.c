@@ -1,3 +1,4 @@
+// clang-format off
 /**
  * @file sensors.c
  * @author MinLun Tsou (astatine1184@gmail.com)

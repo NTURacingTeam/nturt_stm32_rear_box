@@ -1,4 +1,5 @@
 /* USER CODE BEGIN Header */
+// clang-format off
 /*
  * FreeRTOS Kernel V10.3.1
  * Portion Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
@@ -161,7 +162,22 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-#define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); for( ;; );}
+#ifdef DEBUG
+
+extern void __module_assert_fail(const char *assertion, const char *file,
+                          unsigned int line, const char *function);
+#define configASSERT(expr)                                       \
+  do {                                                           \
+    if (!(expr)) {                                               \
+      __module_assert_fail(#expr, __FILE__, __LINE__, __func__); \
+    }                                                            \
+  } while (0)
+
+#else
+
+#define configASSERT(expr) (void)(expr)
+
+#endif  // DEBUG
 /* USER CODE END 1 */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS

@@ -107,8 +107,8 @@ void freertos_stats_task(void *argument) {
     printf("No Name             Status      Usage   HW\n");
 
     for (int i = 0; i < task_size; i++) {
-      float runtime_percent = (100.0 * (float)task_status[i].ulRunTimeCounter /
-                               (float)total_run_time);
+      int runtime_percent =
+          100 * task_status[i].ulRunTimeCounter / total_run_time;
 
       char *task_state;
       switch (task_status[i].eCurrentState) {
@@ -131,7 +131,7 @@ void freertos_stats_task(void *argument) {
           task_state = "UNKNOWN";
       }
 
-      printf("%2d %-16s %-8s %7.4f%% %4u\n", i, task_status[i].pcTaskName,
+      printf("%2d %-16s %-8s %7d%% %4u\n", i, task_status[i].pcTaskName,
              task_state, runtime_percent, task_status[i].usStackHighWaterMark);
     }
     vPortFree(task_status);
